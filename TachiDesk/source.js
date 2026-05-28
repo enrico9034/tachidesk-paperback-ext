@@ -2481,8 +2481,8 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
 (function (Buffer){(function (){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAuthString = exports.setAuthString = exports.getAuthState = exports.setAuthState = exports.getServerAPI = exports.getServerURL = exports.setServerURL = exports.resetSettings = exports.languages = exports.rowStyles = exports.DEFAULT_SOURCE_ROW_STYLE = exports.DEFAULT_CATEGORY_ROW_STYLE = exports.DEFAULT_UPDATED_ROW_STYLE = exports.DEFAULT_SOURCE_ROW_STATE = exports.DEFAULT_CATEGORY_ROW_STATE = exports.DEFAULT_UPDATED_ROW_STATE = exports.DEFAULT_MANGA_PER_ROW = exports.DEFAULT_SELECTED_LANGUAGES = exports.DEFAULT_SELECTED_SOURCES = exports.DEFAULT_SERVER_SOURCES = exports.DEFAULT_SERVER_SOURCE = exports.DEFAULT_SELECTED_CATEGORIES = exports.DEFAULT_SERVER_CATEGORIES = exports.DEFAULT_SERVER_CATEGORY = exports.DEFAULT_PASSWORD = exports.DEFAULT_USERNAME = exports.DEFAULT_AUTH_STRING = exports.DEFAULT_AUTH_STATE = exports.DEFAULT_SERVER_API = exports.DEFAULT_API_ENDPOINT = exports.DEFAULT_SERVER_URL = exports.SOURCE_ROW_STYLE_KEY = exports.CATEGORY_ROW_STYLE_KEY = exports.UPDATED_ROW_STYLE_KEY = exports.SOURCE_ROW_STATE_KEY = exports.CATEGORY_ROW_STATE_KEY = exports.UPDATED_ROW_STATE_KEY = exports.MANGA_PER_ROW_KEY = exports.SELECTED_LANGUAGES_KEY = exports.SELECTED_SOURCES_KEY = exports.SERVER_SOURCES_KEY = exports.SELECTED_CATEGORIES_KEY = exports.SERVER_CATEGORIES_KEY = exports.PASSWORD_KEY = exports.USERNAME_KEY = exports.AUTH_STRING_KEY = exports.AUTH_STATE_KEY = exports.SERVER_API_KEY = exports.SERVER_URL_KEY = exports.serverUnavailableMangaTiles = void 0;
-exports.v1Migration = exports.getSelectedLanguages = exports.setSelectedLanguages = exports.getLanguageName = exports.getLanguageCodes = exports.getServerLanguages = exports.getSourceRowStyle = exports.setSourceRowStyle = exports.getCategoryRowStyle = exports.setCategoryRowStyle = exports.getUpdatedRowStyle = exports.setUpdatedRowStyle = exports.getSourceRowState = exports.setSourceRowState = exports.getCategoryRowState = exports.setCategoryRowState = exports.getUpdatedRowState = exports.setUpdatedRowState = exports.getMangaPerRow = exports.setMangaPerRow = exports.styleResolver = exports.getSourceNameFromId = exports.getSourceFromId = exports.getSourcesIds = exports.getSelectedSources = exports.setSelectedSources = exports.getServerSources = exports.setServerSources = exports.fetchServerSources = exports.getCategoryNameFromId = exports.getCategoryFromId = exports.getCategoriesIds = exports.getSelectedCategories = exports.setSelectedCategories = exports.getServerCategories = exports.setServerCategories = exports.fetchServerCategories = exports.testRequest = exports.makeRequest = exports.getPassword = exports.setPassword = exports.getUsername = exports.setUsername = void 0;
+exports.getServerGraphQL = exports.getServerAPI = exports.getServerURL = exports.setServerURL = exports.resetSettings = exports.languages = exports.rowStyles = exports.DEFAULT_SOURCE_ROW_STYLE = exports.DEFAULT_CATEGORY_ROW_STYLE = exports.DEFAULT_UPDATED_ROW_STYLE = exports.DEFAULT_SOURCE_ROW_STATE = exports.DEFAULT_CATEGORY_ROW_STATE = exports.DEFAULT_UPDATED_ROW_STATE = exports.DEFAULT_MANGA_PER_ROW = exports.DEFAULT_SELECTED_LANGUAGES = exports.DEFAULT_SELECTED_SOURCES = exports.DEFAULT_SERVER_SOURCES = exports.DEFAULT_SERVER_SOURCE = exports.DEFAULT_SELECTED_CATEGORIES = exports.DEFAULT_SERVER_CATEGORIES = exports.DEFAULT_SERVER_CATEGORY = exports.DEFAULT_PASSWORD = exports.DEFAULT_USERNAME = exports.DEFAULT_AUTH_STRING = exports.DEFAULT_AUTH_STATE = exports.DEFAULT_SERVER_GRAPHQL = exports.DEFAULT_SERVER_API = exports.DEFAULT_GRAPHQL_ENDPOINT = exports.DEFAULT_API_ENDPOINT = exports.DEFAULT_SERVER_URL = exports.SOURCE_ROW_STYLE_KEY = exports.CATEGORY_ROW_STYLE_KEY = exports.UPDATED_ROW_STYLE_KEY = exports.SOURCE_ROW_STATE_KEY = exports.CATEGORY_ROW_STATE_KEY = exports.UPDATED_ROW_STATE_KEY = exports.MANGA_PER_ROW_KEY = exports.SELECTED_LANGUAGES_KEY = exports.SELECTED_SOURCES_KEY = exports.SERVER_SOURCES_KEY = exports.SELECTED_CATEGORIES_KEY = exports.SERVER_CATEGORIES_KEY = exports.PASSWORD_KEY = exports.USERNAME_KEY = exports.AUTH_STRING_KEY = exports.AUTH_STATE_KEY = exports.SERVER_GRAPHQL_KEY = exports.SERVER_API_KEY = exports.SERVER_URL_KEY = exports.serverUnavailableMangaTiles = void 0;
+exports.v1Migration = exports.getSelectedLanguages = exports.setSelectedLanguages = exports.getLanguageName = exports.getLanguageCodes = exports.getServerLanguages = exports.getSourceRowStyle = exports.setSourceRowStyle = exports.getCategoryRowStyle = exports.setCategoryRowStyle = exports.getUpdatedRowStyle = exports.setUpdatedRowStyle = exports.getSourceRowState = exports.setSourceRowState = exports.getCategoryRowState = exports.setCategoryRowState = exports.getUpdatedRowState = exports.setUpdatedRowState = exports.getMangaPerRow = exports.setMangaPerRow = exports.styleResolver = exports.getSourceNameFromId = exports.getSourceFromId = exports.getSourcesIds = exports.getSelectedSources = exports.setSelectedSources = exports.getServerSources = exports.setServerSources = exports.fetchServerSources = exports.getCategoryNameFromId = exports.getCategoryFromId = exports.getCategoriesIds = exports.getSelectedCategories = exports.setSelectedCategories = exports.getServerCategories = exports.setServerCategories = exports.fetchServerCategories = exports.testRequest = exports.makeRequest = exports.testGraphQL = exports.graphqlRequest = exports.getPassword = exports.setPassword = exports.getUsername = exports.setUsername = exports.getAuthString = exports.setAuthString = exports.getAuthState = exports.setAuthState = void 0;
 function serverUnavailableMangaTiles() {
     return [
         App.createPartialSourceManga({
@@ -2497,6 +2497,7 @@ exports.serverUnavailableMangaTiles = serverUnavailableMangaTiles;
 // StateManager Keys
 exports.SERVER_URL_KEY = "serverURL";
 exports.SERVER_API_KEY = "serverAPI";
+exports.SERVER_GRAPHQL_KEY = "serverGraphQL";
 exports.AUTH_STATE_KEY = "AuthState";
 exports.AUTH_STRING_KEY = "AuthString";
 exports.USERNAME_KEY = "serverUsername";
@@ -2516,7 +2517,9 @@ exports.SOURCE_ROW_STYLE_KEY = "sourceRowStyle";
 // Defaults
 exports.DEFAULT_SERVER_URL = "http://127.0.0.1:4567/";
 exports.DEFAULT_API_ENDPOINT = "api/v1/";
+exports.DEFAULT_GRAPHQL_ENDPOINT = "api/graphql";
 exports.DEFAULT_SERVER_API = exports.DEFAULT_SERVER_URL + exports.DEFAULT_API_ENDPOINT;
+exports.DEFAULT_SERVER_GRAPHQL = exports.DEFAULT_SERVER_URL + exports.DEFAULT_GRAPHQL_ENDPOINT;
 exports.DEFAULT_AUTH_STATE = false;
 exports.DEFAULT_AUTH_STRING = "";
 exports.DEFAULT_USERNAME = "";
@@ -2599,13 +2602,14 @@ exports.languages = {
     'uk': 'Yкраї́нська',
     'vi': 'Tiếng Việt',
     'zh-Hans': '中文 (简化字)',
-    'zh-Hant': '中文 (繁體字)', // Chinese (Traditional)
+    'zh-Hant': '中文 (繁體字)',
 };
 // ! Query Interfaces End
 // ! Reset Settings Begin
 async function resetSettings(stateManager) {
     await stateManager.store(exports.SERVER_URL_KEY, exports.DEFAULT_SERVER_URL);
     await stateManager.store(exports.SERVER_API_KEY, exports.DEFAULT_SERVER_API);
+    await stateManager.store(exports.SERVER_GRAPHQL_KEY, exports.DEFAULT_SERVER_GRAPHQL);
     await stateManager.store(exports.AUTH_STATE_KEY, exports.DEFAULT_AUTH_STATE);
     await stateManager.keychain.store(exports.AUTH_STRING_KEY, exports.DEFAULT_AUTH_STRING);
     await stateManager.store(exports.USERNAME_KEY, exports.DEFAULT_USERNAME);
@@ -2627,26 +2631,36 @@ exports.resetSettings = resetSettings;
 // ! Reset Settings End
 // ! Server URL start
 async function setServerURL(stateManager, url, typed = false) {
-    // * since every key press is a value set() and get(), the override which ensuring that the URL always has a backslash won't let people delete it
-    // ! typed is a boolean that we set to true only when being entered by the DUIInputField, skipping the override when typing the url
-    // ! atleast until user hits submit.
     if (!typed) {
         url = url == "" ? exports.DEFAULT_SERVER_URL : url;
-        url = url.slice(-1) === '/' ? url : url + "/"; // Verified / at the end of URL
+        url = url.slice(-1) === '/' ? url : url + "/";
+    }
+    else {
+        // Even while typing, normalize trailing slash for the graphql/api keys
+        const normalized = url.slice(-1) === '/' ? url : url + "/";
+        await stateManager.store(exports.SERVER_API_KEY, normalized + exports.DEFAULT_API_ENDPOINT);
+        await stateManager.store(exports.SERVER_GRAPHQL_KEY, normalized + exports.DEFAULT_GRAPHQL_ENDPOINT);
+        await stateManager.store(exports.SERVER_URL_KEY, url);
+        return;
     }
     await stateManager.store(exports.SERVER_URL_KEY, url);
     await stateManager.store(exports.SERVER_API_KEY, url + exports.DEFAULT_API_ENDPOINT);
+    await stateManager.store(exports.SERVER_GRAPHQL_KEY, url + exports.DEFAULT_GRAPHQL_ENDPOINT);
 }
 exports.setServerURL = setServerURL;
 async function getServerURL(stateManager) {
     return await stateManager.retrieve(exports.SERVER_URL_KEY) ?? exports.DEFAULT_SERVER_URL;
 }
 exports.getServerURL = getServerURL;
-// Get Server API url (i.e. http://127.0.0.1/api/v1/)
 async function getServerAPI(stateManager) {
     return await stateManager.retrieve(exports.SERVER_API_KEY) ?? exports.DEFAULT_SERVER_API;
 }
 exports.getServerAPI = getServerAPI;
+async function getServerGraphQL(stateManager) {
+    return await stateManager.retrieve(exports.SERVER_GRAPHQL_KEY)
+        ?? ((await getServerURL(stateManager)) + exports.DEFAULT_GRAPHQL_ENDPOINT);
+}
+exports.getServerGraphQL = getServerGraphQL;
 // !Server URL End
 // ! Authentication start
 async function setAuthState(stateManager, state) {
@@ -2660,7 +2674,7 @@ exports.getAuthState = getAuthState;
 async function setAuthString(stateManager) {
     let username = await getUsername(stateManager);
     let password = await getPassword(stateManager);
-    let authString = 'Basic ' + Buffer.from(username + ':' + password, 'binary').toString('base64'); // Base64 of username:password
+    let authString = 'Basic ' + Buffer.from(username + ':' + password, 'binary').toString('base64');
     await stateManager.keychain.store(exports.AUTH_STRING_KEY, authString);
 }
 exports.setAuthString = setAuthString;
@@ -2670,7 +2684,7 @@ async function getAuthString(stateManager) {
 exports.getAuthString = getAuthString;
 async function setUsername(stateManager, username) {
     await stateManager.store(exports.USERNAME_KEY, username);
-    await setAuthString(stateManager); // Set new auth string based on new username
+    await setAuthString(stateManager);
 }
 exports.setUsername = setUsername;
 async function getUsername(stateManager) {
@@ -2679,7 +2693,7 @@ async function getUsername(stateManager) {
 exports.getUsername = getUsername;
 async function setPassword(stateManager, password) {
     await stateManager.keychain.store(exports.PASSWORD_KEY, password);
-    await setAuthString(stateManager); // Set new auth string based on new username
+    await setAuthString(stateManager);
 }
 exports.setPassword = setPassword;
 async function getPassword(stateManager) {
@@ -2687,7 +2701,61 @@ async function getPassword(stateManager) {
 }
 exports.getPassword = getPassword;
 // ! Authentication End
-// ! Requests
+// ! GraphQL Requests
+async function graphqlRequest(stateManager, requestManager, query, variables = {}) {
+    const endpoint = await getServerGraphQL(stateManager);
+    const request = App.createRequest({
+        url: endpoint,
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        data: JSON.stringify({ query, variables })
+    });
+    let response;
+    try {
+        response = await requestManager.schedule(request, 0);
+    }
+    catch (error) {
+        throw new Error(`Failed to reach GraphQL endpoint: ${endpoint}`);
+    }
+    if (response.status === 401) {
+        throw new Error("Unauthorized: check username/password.");
+    }
+    if (response.status < 200 || response.status >= 300) {
+        throw new Error(`GraphQL HTTP error ${response.status}: ${response.data}`);
+    }
+    let json;
+    try {
+        json = JSON.parse(response.data ?? "");
+    }
+    catch {
+        throw new Error(`GraphQL response was not valid JSON: ${response.data}`);
+    }
+    if (json.errors) {
+        throw new Error(`GraphQL error: ${JSON.stringify(json.errors)}`);
+    }
+    return json;
+}
+exports.graphqlRequest = graphqlRequest;
+async function testGraphQL(stateManager, requestManager) {
+    try {
+        const result = await graphqlRequest(stateManager, requestManager, `
+            query TestConnection {
+                aboutServer {
+                    name
+                    version
+                }
+            }
+        `);
+        return result.data;
+    }
+    catch (e) {
+        return e instanceof Error ? e : new Error(String(e));
+    }
+}
+exports.testGraphQL = testGraphQL;
 async function makeRequest(stateManager, requestManager, apiEndpoint, method = "GET", data, headers = {}) {
     const serverAPI = await getServerAPI(stateManager);
     const request = App.createRequest({
@@ -2697,55 +2765,76 @@ async function makeRequest(stateManager, requestManager, apiEndpoint, method = "
         headers
     });
     let response;
-    let responseStatus;
-    let responseData;
-    // Checks if the request actually went out
     try {
         response = await requestManager.schedule(request, 0);
     }
-    catch (error) {
+    catch {
         return new Error(serverAPI + apiEndpoint);
     }
-    // Checks if we got a response, then checks if we got a good response
-    try {
-        responseStatus = response?.status;
+    if (response?.status == 401) {
+        return Error("Unauthorized " + JSON.stringify(await getAuthString(stateManager)));
     }
-    catch (error) {
-        return Error("Couldn't connect to server.");
-    }
-    if (responseStatus == 401) {
-        return Error("Unauthorized" + " " + JSON.stringify(await getAuthString(stateManager)));
-    }
-    if (responseStatus != 200) {
+    if (response?.status != 200) {
         return Error("Your query is invalid. " + JSON.stringify(response?.status));
     }
-    // Checks for garbage data
     try {
-        responseData = JSON.parse(response.data ?? "");
+        return JSON.parse(response.data ?? "");
     }
-    catch (error) {
+    catch {
         return Error(apiEndpoint);
     }
-    return responseData;
 }
 exports.makeRequest = makeRequest;
-// Requests used for the test server button. Could be useful to test connection at other points
 async function testRequest(stateManager, requestManager) {
-    return await makeRequest(stateManager, requestManager, "settings/about/");
+    return await testGraphQL(stateManager, requestManager);
 }
 exports.testRequest = testRequest;
 // ! Requests End
 // ! Categories Start
-// Fetch Categories from server and returns them as a record
-async function fetchServerCategories(stateManager, requestManager) {
-    let categories = {};
-    const fetchedCategories = await makeRequest(stateManager, requestManager, "category/");
-    if (fetchedCategories instanceof Error) {
-        throw new Error("Failed to fetch categories.");
+const GQL_LIST_CATEGORIES = `
+    query ListCategories {
+        categories(orderBy: ORDER) {
+            nodes {
+                id
+                order
+                name
+                default
+                meta {
+                    key
+                    value
+                }
+            }
+        }
     }
-    fetchedCategories.forEach((category) => {
-        categories[JSON.stringify(category.id)] = category;
-    });
+`;
+async function fetchServerCategories(stateManager, requestManager) {
+    const categories = {};
+    try {
+        const result = await graphqlRequest(stateManager, requestManager, GQL_LIST_CATEGORIES);
+        const nodes = result?.data?.categories?.nodes ?? [];
+        nodes.forEach((node) => {
+            // Reduce meta array back to a record (best-effort)
+            let meta = {};
+            if (Array.isArray(node.meta)) {
+                for (const m of node.meta) {
+                    meta[m.key] = m.value;
+                }
+            }
+            const category = {
+                id: node.id,
+                order: node.order ?? 0,
+                name: node.name,
+                default: !!node.default,
+                size: 0,
+                includeInUpdate: "EXCLUDE",
+                meta
+            };
+            categories[String(category.id)] = category;
+        });
+    }
+    catch (error) {
+        throw new Error(`Failed to fetch categories: ${error}`);
+    }
     return categories;
 }
 exports.fetchServerCategories = fetchServerCategories;
@@ -2777,7 +2866,6 @@ function getCategoryFromId(categories, id) {
     return categories[id] ?? exports.DEFAULT_SERVER_CATEGORY;
 }
 exports.getCategoryFromId = getCategoryFromId;
-// categoryName is used to give a name to old entries which are no longer in the server
 function getCategoryNameFromId(categories, id) {
     let categoryName = "OLD ENTRY OR ERROR";
     Object.values(categories).forEach(category => {
@@ -2790,16 +2878,44 @@ function getCategoryNameFromId(categories, id) {
 exports.getCategoryNameFromId = getCategoryNameFromId;
 // ! Categories End
 // ! Sources Start
-// Fetch Sources from server and return as record
-async function fetchServerSources(stateManager, requestManager) {
-    let sources = {};
-    const fetchedSources = await makeRequest(stateManager, requestManager, "source/list");
-    if (fetchedSources instanceof Error) {
-        throw new Error("Failed to fetch sources.");
+const GQL_LIST_SOURCES = `
+    query ListSources {
+        sources {
+            nodes {
+                id
+                name
+                lang
+                iconUrl
+                supportsLatest
+                isConfigurable
+                isNsfw
+                displayName
+            }
+        }
     }
-    fetchedSources.forEach((source) => {
-        sources[source.id] = source;
-    });
+`;
+async function fetchServerSources(stateManager, requestManager) {
+    const sources = {};
+    try {
+        const result = await graphqlRequest(stateManager, requestManager, GQL_LIST_SOURCES);
+        const nodes = result?.data?.sources?.nodes ?? [];
+        nodes.forEach((node) => {
+            const source = {
+                id: String(node.id),
+                name: node.name ?? "",
+                lang: node.lang ?? "",
+                iconUrl: node.iconUrl ?? "",
+                supportsLatest: !!node.supportsLatest,
+                isConfigurable: !!node.isConfigurable,
+                isNsfw: !!node.isNsfw,
+                displayName: node.displayName ?? node.name ?? ""
+            };
+            sources[source.id] = source;
+        });
+    }
+    catch (error) {
+        throw new Error(`Failed to fetch sources: ${error}`);
+    }
     return sources;
 }
 exports.fetchServerSources = fetchServerSources;
@@ -2831,7 +2947,6 @@ function getSourceFromId(sources, id) {
     return sources[id] ?? exports.DEFAULT_SERVER_SOURCE;
 }
 exports.getSourceFromId = getSourceFromId;
-// SourceName is used to give a name to old entries which are no longer in the server
 function getSourceNameFromId(sources, id) {
     let sourceName = "OLD ENTRY OR ERROR";
     Object.values(sources).forEach(source => {
@@ -2972,7 +3087,9 @@ exports.v1Migration = v1Migration;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.resetSettingsButton = exports.languageSettings = exports.sourceSettings = exports.categoriesSettings = exports.HomepageSettings = exports.serverAddressSettings = void 0;
 const Common_1 = require("./Common");
-// 2 Sections 1 page, -> 1 for server url, another for auth
+// ---------------------------------------------------------------------------
+// Server settings page (URL + Auth)
+// ---------------------------------------------------------------------------
 const serverAddressSettings = (stateManager, requestManager) => {
     return App.createDUINavigationButton({
         id: "serverSettings",
@@ -2980,14 +3097,15 @@ const serverAddressSettings = (stateManager, requestManager) => {
         form: App.createDUIForm({
             onSubmit: async () => {
                 await (0, Common_1.setServerURL)(stateManager, await (0, Common_1.getServerURL)(stateManager), false);
-                const serverSources = await (0, Common_1.fetchServerSources)(stateManager, requestManager);
-                const serverCategories = await (0, Common_1.fetchServerCategories)(stateManager, requestManager);
-                if (serverSources instanceof Error || serverCategories instanceof Error) {
-                    throw new Error("Failed to fetch server. Try again?");
-                }
-                else {
+                try {
+                    const serverSources = await (0, Common_1.fetchServerSources)(stateManager, requestManager);
+                    const serverCategories = await (0, Common_1.fetchServerCategories)(stateManager, requestManager);
                     await (0, Common_1.setServerSources)(stateManager, serverSources);
                     await (0, Common_1.setServerCategories)(stateManager, serverCategories);
+                }
+                catch (e) {
+                    console.log(`Server settings submit failed: ${e}`);
+                    throw new Error(`Failed to fetch server. ${e instanceof Error ? e.message : ''}`);
                 }
             },
             sections: async () => {
@@ -3015,12 +3133,17 @@ const serverAddressSettings = (stateManager, requestManager) => {
                                 label: "Test Server",
                                 onTap: async () => {
                                     console.log('Testing server');
-                                    const value = await (0, Common_1.testRequest)(stateManager, requestManager);
-                                    if (value instanceof Error) {
-                                        testResults = `Error: ${value.message}`;
+                                    try {
+                                        const value = await (0, Common_1.testRequest)(stateManager, requestManager);
+                                        if (value instanceof Error) {
+                                            testResults = `Error: ${value.message}`;
+                                        }
+                                        else {
+                                            testResults = `Response: ${JSON.stringify(value)}`;
+                                        }
                                     }
-                                    else {
-                                        testResults = `Response: ${JSON.stringify(value)}`;
+                                    catch (e) {
+                                        testResults = `Error: ${e instanceof Error ? e.message : String(e)}`;
                                     }
                                     console.log(`Test results: ${testResults}`);
                                 }
@@ -3036,7 +3159,6 @@ const serverAddressSettings = (stateManager, requestManager) => {
                         header: "Authorization",
                         isHidden: false,
                         rows: async () => [
-                            // Auth Switch
                             App.createDUISwitch({
                                 id: "authStateSwitch",
                                 label: "Enabled",
@@ -3049,7 +3171,6 @@ const serverAddressSettings = (stateManager, requestManager) => {
                                     }
                                 })
                             }),
-                            // Username
                             App.createDUIInputField({
                                 id: "UsernameInputField",
                                 label: "Username",
@@ -3062,7 +3183,6 @@ const serverAddressSettings = (stateManager, requestManager) => {
                                     }
                                 })
                             }),
-                            // Password
                             App.createDUISecureInputField({
                                 id: "passwordInputField",
                                 label: "Password",
@@ -3083,9 +3203,10 @@ const serverAddressSettings = (stateManager, requestManager) => {
     });
 };
 exports.serverAddressSettings = serverAddressSettings;
-// Houses settings for Manga Per Row, and settings for each type of homepage section (recently updated, library category, and source )
-// for sections -> You can toggle them, change their style, change their content (which category/source)
-const HomepageSettings = (stateManager, requestManager) => {
+// ---------------------------------------------------------------------------
+// Homepage settings page
+// ---------------------------------------------------------------------------
+const HomepageSettings = (stateManager, _requestManager) => {
     return App.createDUINavigationButton({
         id: "homepageSettings",
         label: "Homepage Settings",
@@ -3142,9 +3263,7 @@ const HomepageSettings = (stateManager, requestManager) => {
                                         await (0, Common_1.setUpdatedRowStyle)(stateManager, newValue);
                                     }
                                 }),
-                                labelResolver: async (option) => {
-                                    return (0, Common_1.styleResolver)(option);
-                                },
+                                labelResolver: async (option) => (0, Common_1.styleResolver)(option),
                             })
                         ]
                     }),
@@ -3178,9 +3297,7 @@ const HomepageSettings = (stateManager, requestManager) => {
                                         await (0, Common_1.setCategoryRowStyle)(stateManager, newValue);
                                     }
                                 }),
-                                labelResolver: async (option) => {
-                                    return (0, Common_1.styleResolver)(option);
-                                },
+                                labelResolver: async (option) => (0, Common_1.styleResolver)(option),
                             }),
                         ]
                     }),
@@ -3214,9 +3331,7 @@ const HomepageSettings = (stateManager, requestManager) => {
                                         await (0, Common_1.setSourceRowStyle)(stateManager, newValue);
                                     }
                                 }),
-                                labelResolver: async (option) => {
-                                    return (0, Common_1.styleResolver)(option);
-                                },
+                                labelResolver: async (option) => (0, Common_1.styleResolver)(option),
                             }),
                         ]
                     })
@@ -3226,28 +3341,30 @@ const HomepageSettings = (stateManager, requestManager) => {
     });
 };
 exports.HomepageSettings = HomepageSettings;
+// ---------------------------------------------------------------------------
 // Category selection
-const categoriesSettings = async (stateManager, requestManager) => {
-    let serverCategories = await (0, Common_1.getServerCategories)(stateManager);
-    let missedSelected = [];
-    // Gets the selected categories, checks if they're in the options. If they're not, add them to a list added to the options later
-    // Ensures that user can delete an old option.
-    for (const id of await (0, Common_1.getSelectedCategories)(stateManager)) {
-        if (!((0, Common_1.getCategoriesIds)(serverCategories).includes(id))) {
-            missedSelected.push(id);
-        }
-    }
+// All getters read fresh from stateManager each time -> no captured closures,
+// fixes "JSManagedValue was released" when the select is re-rendered.
+// ---------------------------------------------------------------------------
+const categoriesSettings = async (stateManager, _requestManager) => {
+    const serverCategories = await (0, Common_1.getServerCategories)(stateManager);
+    const selected = await (0, Common_1.getSelectedCategories)(stateManager);
+    const known = (0, Common_1.getCategoriesIds)(serverCategories);
+    const missedSelected = selected.filter((id) => !known.includes(id));
+    const options = known.concat(missedSelected);
     return App.createDUISelect({
         id: "CategoriesSelection",
         label: "Categories",
         allowsMultiselect: true,
-        options: (0, Common_1.getCategoriesIds)(serverCategories).concat(missedSelected),
+        options,
         labelResolver: async (option) => {
-            return (0, Common_1.getCategoryNameFromId)(serverCategories, option) ?? "";
+            // Read fresh inside the callback so we don't hold a captured ref
+            const cats = await (0, Common_1.getServerCategories)(stateManager);
+            return (0, Common_1.getCategoryNameFromId)(cats, option) ?? "";
         },
         value: App.createDUIBinding({
             async get() {
-                return (await (0, Common_1.getSelectedCategories)(stateManager));
+                return await (0, Common_1.getSelectedCategories)(stateManager);
             },
             async set(newValue) {
                 await (0, Common_1.setSelectedCategories)(stateManager, newValue);
@@ -3256,31 +3373,38 @@ const categoriesSettings = async (stateManager, requestManager) => {
     });
 };
 exports.categoriesSettings = categoriesSettings;
+// ---------------------------------------------------------------------------
 // Source selection
-const sourceSettings = async (stateManager, requestManager) => {
-    let serverSources = await (0, Common_1.getServerSources)(stateManager);
-    let missedSelected = [];
-    const languages = await (0, Common_1.getSelectedLanguages)(stateManager);
-    // Clean sources based on selected languages
-    // getSourcesIds(serverSources).concat(missedSelected)
-    const options = Object.keys(serverSources).filter((key) => {
+// ---------------------------------------------------------------------------
+const sourceSettings = async (stateManager, _requestManager) => {
+    const serverSources = await (0, Common_1.getServerSources)(stateManager);
+    const selectedLanguages = await (0, Common_1.getSelectedLanguages)(stateManager);
+    const selectedSources = await (0, Common_1.getSelectedSources)(stateManager);
+    // Filter sources by selected languages
+    const filtered = Object.keys(serverSources).filter((key) => {
         const source = serverSources[key] ?? Common_1.DEFAULT_SERVER_SOURCE;
-        return languages.includes(source.lang);
+        return selectedLanguages.includes(source.lang);
     });
-    // Gets the selected sources, checks if they're in the options. If they're not, add them to a list added to the options later
-    // Ensures that user can delete an old option.
-    for (const id of options.concat(await (0, Common_1.getSelectedSources)(stateManager))) {
-        if (!((0, Common_1.getSourcesIds)(serverSources).includes(id))) {
-            missedSelected.push(id);
+    // Add any selected sources that aren't in the filtered list (so users can deselect them)
+    const knownIds = (0, Common_1.getSourcesIds)(serverSources);
+    const missedSelected = selectedSources.filter((id) => !knownIds.includes(id) || !filtered.includes(id));
+    // Deduplicate while preserving order
+    const seen = new Set();
+    const options = [];
+    for (const id of [...filtered, ...missedSelected]) {
+        if (!seen.has(id)) {
+            seen.add(id);
+            options.push(id);
         }
     }
     return App.createDUISelect({
         id: "SourcesSelection",
         label: "Sources",
         allowsMultiselect: true,
-        options: options.concat(missedSelected),
+        options,
         labelResolver: async (option) => {
-            return (0, Common_1.getSourceNameFromId)(serverSources, option);
+            const sources = await (0, Common_1.getServerSources)(stateManager);
+            return (0, Common_1.getSourceNameFromId)(sources, option);
         },
         value: App.createDUIBinding({
             async get() {
@@ -3293,15 +3417,26 @@ const sourceSettings = async (stateManager, requestManager) => {
     });
 };
 exports.sourceSettings = sourceSettings;
+// ---------------------------------------------------------------------------
+// Language selection
+// ---------------------------------------------------------------------------
 const languageSettings = async (stateManager) => {
+    const serverLangs = await (0, Common_1.getServerLanguages)(stateManager);
+    const options = (0, Common_1.getLanguageCodes)().concat(serverLangs);
+    // Deduplicate
+    const seen = new Set();
+    const uniqueOptions = options.filter((l) => {
+        if (seen.has(l))
+            return false;
+        seen.add(l);
+        return true;
+    });
     return App.createDUISelect({
         id: "languageSelection",
         label: "Languages",
         allowsMultiselect: true,
-        options: (0, Common_1.getLanguageCodes)().concat(await (0, Common_1.getServerLanguages)(stateManager)),
-        labelResolver: async (option) => {
-            return (0, Common_1.getLanguageName)(option);
-        },
+        options: uniqueOptions,
+        labelResolver: async (option) => (0, Common_1.getLanguageName)(option),
         value: App.createDUIBinding({
             async get() {
                 return await (0, Common_1.getSelectedLanguages)(stateManager);
@@ -3313,7 +3448,9 @@ const languageSettings = async (stateManager) => {
     });
 };
 exports.languageSettings = languageSettings;
-// Button which runs a function from common which sets every Paperback value back to their default values
+// ---------------------------------------------------------------------------
+// Reset settings button
+// ---------------------------------------------------------------------------
 const resetSettingsButton = async (stateManager) => {
     return App.createDUIButton({
         id: "resetSettingsButton",
@@ -3334,10 +3471,10 @@ const Settings_1 = require("./Settings");
 const Common_1 = require("./Common");
 exports.TachiDeskInfo = {
     author: 'ofelizestevez & Alles',
-    description: 'Paperback extension which aims to bridge all of Tachidesks features and the Paperback App.',
+    description: 'Paperback extension which aims to bridge all of Tachidesks features and the Paperback App. (GraphQL)',
     icon: 'icon.png',
     name: 'Tachidesk',
-    version: '2.1.0',
+    version: '3.0.0',
     websiteBaseURL: "https://github.com/Suwayomi/Tachidesk-Server",
     contentRating: types_1.ContentRating.EVERYONE,
     sourceTags: [
@@ -3348,6 +3485,166 @@ exports.TachiDeskInfo = {
     ],
     intents: types_1.SourceIntents.MANGA_CHAPTERS | types_1.SourceIntents.SETTINGS_UI | types_1.SourceIntents.HOMEPAGE_SECTIONS | types_1.SourceIntents.MANGA_TRACKING
 };
+// =================================================================
+// GraphQL Query / Mutation Definitions
+// =================================================================
+const GQL_GET_MANGA = `
+    query GetManga($id: Int!) {
+        manga(id: $id) {
+            id
+            title
+            author
+            artist
+            description
+            genre
+            status
+            thumbnailUrl
+            lastFetchedAt
+        }
+    }
+`;
+const GQL_GET_MANGA_ONLINE_FETCH = `
+    mutation FetchManga($id: Int!) {
+        fetchManga(input: { id: $id }) {
+            manga {
+                id
+                title
+                lastFetchedAt
+            }
+        }
+    }
+`;
+const GQL_GET_CHAPTERS = `
+    query GetChapters($mangaId: Int!) {
+        chapters(condition: { mangaId: $mangaId }, orderBy: SOURCE_ORDER, orderByType: DESC) {
+            nodes {
+                id
+                sourceOrder
+                name
+                chapterNumber
+                uploadDate
+                pageCount
+                mangaId
+            }
+        }
+    }
+`;
+const GQL_FETCH_CHAPTERS = `
+    mutation FetchChapters($mangaId: Int!) {
+        fetchChapters(input: { mangaId: $mangaId }) {
+            chapters {
+                id
+                sourceOrder
+            }
+        }
+    }
+`;
+const GQL_GET_CHAPTER = `
+    query GetChapter($mangaId: Int!, $sourceOrder: Int!) {
+        chapters(condition: { mangaId: $mangaId, sourceOrder: $sourceOrder }, first: 1) {
+            nodes {
+                id
+                sourceOrder
+                name
+                chapterNumber
+                pageCount
+                mangaId
+            }
+        }
+    }
+`;
+const GQL_FETCH_CHAPTER_PAGES = `
+    mutation FetchChapterPages($chapterId: Int!) {
+        fetchChapterPages(input: { chapterId: $chapterId }) {
+            pages
+        }
+    }
+`;
+const GQL_GET_RECENT_CHAPTERS = `
+    query GetRecentChapters($offset: Int, $first: Int) {
+        chapters(
+            condition: { isDownloaded: false }
+            orderBy: FETCHED_AT
+            orderByType: DESC
+            offset: $offset
+            first: $first
+        ) {
+            nodes {
+                id
+                name
+                manga {
+                    id
+                    title
+                    thumbnailUrl
+                }
+            }
+            pageInfo {
+                hasNextPage
+            }
+        }
+    }
+`;
+const GQL_GET_CATEGORY_MANGAS = `
+    query GetCategoryMangas($categoryId: Int!) {
+        category(id: $categoryId) {
+            id
+            name
+            mangas {
+                nodes {
+                    id
+                    title
+                    thumbnailUrl
+                }
+            }
+        }
+    }
+`;
+const GQL_GET_SOURCE_MANGAS = `
+    query GetSourceMangas($sourceId: LongString!, $type: FetchSourceMangaType!, $page: Int!) {
+        fetchSourceManga(input: { source: $sourceId, type: $type, page: $page }) {
+            hasNextPage
+            mangas {
+                id
+                title
+                thumbnailUrl
+            }
+        }
+    }
+`;
+const GQL_SEARCH_SOURCE = `
+    query SearchSource($sourceId: LongString!, $query: String, $page: Int!) {
+        fetchSourceManga(input: { source: $sourceId, type: SEARCH, page: $page, query: $query }) {
+            hasNextPage
+            mangas {
+                id
+                title
+                thumbnailUrl
+            }
+        }
+    }
+`;
+const GQL_GET_MANGA_FULL = `
+    query GetMangaFull($id: Int!) {
+        manga(id: $id) {
+            id
+            title
+            lastReadChapter {
+                id
+                chapterNumber
+            }
+        }
+    }
+`;
+const GQL_UPDATE_CHAPTER_READ = `
+    mutation UpdateChapter($id: Int!) {
+        updateChapter(input: { id: $id, patch: { isRead: true } }) {
+            chapter {
+                id
+                isRead
+            }
+        }
+    }
+`;
 class TachiDesk {
     constructor() {
         this.stateManager = App.createSourceStateManager();
@@ -3355,7 +3652,6 @@ class TachiDesk {
             requestsPerSecond: 4,
             requestTimeout: 20000,
             interceptor: {
-                // Intercepts request to add basic auth
                 interceptRequest: async (request) => {
                     const authEnabled = await (0, Common_1.getAuthState)(this.stateManager);
                     if (authEnabled) {
@@ -3371,7 +3667,6 @@ class TachiDesk {
                 }
             }
         });
-        // Variable used for share URL, updated by getChapters()
         this.serverAddress = "";
     }
     // Settings
@@ -3398,14 +3693,17 @@ class TachiDesk {
         }
         return "";
     }
-    // Manga info -> uses TachiManga interface
     async getMangaDetails(mangaId) {
-        const manga = await (0, Common_1.makeRequest)(this.stateManager, this.requestManager, "manga/" + mangaId);
+        const result = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_MANGA, {
+            id: parseInt(mangaId)
+        });
+        const manga = result.data.manga;
+        const serverURL = await (0, Common_1.getServerURL)(this.stateManager);
         const tags = [
             App.createTagSection({
                 id: "0",
                 label: "genres",
-                tags: manga.genre.map((tag) => App.createTag({
+                tags: (manga.genre ?? []).map((tag) => App.createTag({
                     id: tag,
                     label: tag
                 }))
@@ -3415,49 +3713,82 @@ class TachiDesk {
             id: mangaId,
             mangaInfo: App.createMangaInfo({
                 titles: [manga.title],
-                image: (await (0, Common_1.getServerURL)(this.stateManager)) + manga.thumbnailUrl.slice(1),
-                author: manga.author,
-                artist: manga.artist,
-                desc: manga.description,
-                status: manga.status,
+                image: manga.thumbnailUrl ? serverURL + manga.thumbnailUrl.replace(/^\//, "") : "",
+                author: manga.author ?? "",
+                artist: manga.artist ?? "",
+                desc: manga.description ?? "",
+                status: manga.status ?? "",
                 tags
             })
         });
     }
-    // Chapter list, sets the share URl address
     async getChapters(mangaId) {
-        // Fetches manga first to use to check last fetched at
-        const manga = await (0, Common_1.makeRequest)(this.stateManager, this.requestManager, "manga/" + mangaId);
-        let chaptersQueryString = "manga/" + mangaId + "/chapters";
-        // If last fetched is older than a day ago, do an online fetch for the manga and the chapter list
-        // Online fetch manga to update the manga.lastFetchedAt. Seems redundant but now idea how to improve
-        if (manga.lastFetchedAt < Math.floor(Date.now() / 1000) - 86400) {
-            (0, Common_1.makeRequest)(this.stateManager, this.requestManager, "manga/" + mangaId + "?onlineFetch=true");
-            chaptersQueryString += "?onlineFetch=true";
+        const mangaIdInt = parseInt(mangaId);
+        // Get manga to check lastFetchedAt
+        const mangaResult = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_MANGA, {
+            id: mangaIdInt
+        });
+        const manga = mangaResult.data.manga;
+        // If last fetched more than a day ago, fetch online
+        const lastFetched = parseInt(manga.lastFetchedAt ?? "0");
+        if (lastFetched < Math.floor(Date.now() / 1000) - 86400) {
+            try {
+                await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_MANGA_ONLINE_FETCH, {
+                    id: mangaIdInt
+                });
+                await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_FETCH_CHAPTERS, {
+                    mangaId: mangaIdInt
+                });
+            }
+            catch (e) {
+                console.log(`Error during online fetch: ${e}`);
+            }
         }
-        const chaptersData = await (0, Common_1.makeRequest)(this.stateManager, this.requestManager, chaptersQueryString);
+        const chaptersResult = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_CHAPTERS, {
+            mangaId: mangaIdInt
+        });
         this.serverAddress = await (0, Common_1.getServerURL)(this.stateManager);
         const chapters = [];
-        for (const chapter of chaptersData) {
+        for (const chapter of chaptersResult.data.chapters.nodes) {
             chapters.push(App.createChapter({
-                id: chapter.index.toString(),
+                id: chapter.sourceOrder.toString(),
                 name: chapter.name,
                 chapNum: chapter.chapterNumber,
-                time: new Date(chapter.uploadDate),
-                sortingIndex: chapter.index
+                time: new Date(parseInt(chapter.uploadDate)),
+                sortingIndex: chapter.sourceOrder
             }));
         }
         return chapters;
     }
-    // Provides pages for chapter
     async getChapterDetails(mangaId, chapterId) {
-        const apiURL = await (0, Common_1.getServerAPI)(this.stateManager);
-        const chapterData = await (0, Common_1.makeRequest)(this.stateManager, this.requestManager, "manga/" + mangaId + "/chapter/" + chapterId);
-        const pages = [];
-        // Tachidesk uses page count, so make an array of length pageCount then use the keys of array LOL
-        // pretty much a for i in range() from python
-        for (const pageIndex of Array(chapterData.pageCount).keys()) {
-            pages.push(apiURL + "manga/" + mangaId + "/chapter/" + chapterId + "/page/" + pageIndex);
+        const serverURL = await (0, Common_1.getServerURL)(this.stateManager);
+        // chapterId here is the sourceOrder. We need to look up the actual chapter id.
+        const chapterResult = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_CHAPTER, {
+            mangaId: parseInt(mangaId),
+            sourceOrder: parseInt(chapterId)
+        });
+        const chapterNode = chapterResult.data.chapters.nodes[0];
+        if (!chapterNode) {
+            throw new Error(`Chapter not found for mangaId=${mangaId}, sourceOrder=${chapterId}`);
+        }
+        // Trigger page fetch (also gets the page URLs)
+        const pagesResult = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_FETCH_CHAPTER_PAGES, {
+            chapterId: chapterNode.id
+        });
+        let pages = [];
+        const fetchedPages = pagesResult.data?.fetchChapterPages?.pages;
+        if (fetchedPages && fetchedPages.length > 0) {
+            pages = fetchedPages.map((p) => {
+                if (p.startsWith("http"))
+                    return p;
+                return serverURL + p.replace(/^\//, "");
+            });
+        }
+        else {
+            // Fallback: construct page URLs from pageCount
+            for (const pageIndex of Array(chapterNode.pageCount).keys()) {
+                pages.push(`${serverURL}api/v1/manga/${mangaId}/chapter/${chapterId}/page/${pageIndex}`);
+            }
         }
         return App.createChapterDetails({
             id: chapterId,
@@ -3465,16 +3796,16 @@ class TachiDesk {
             pages
         });
     }
-    // Homepage sections (updated, library categories, sources)
+    // Homepage sections
     async getHomePageSections(sectionCallback) {
         const promises = [];
-        const sections = [];
-        // Checks if you need to migrate from v1
+        // Check for v1 migration
         if (await this.stateManager.retrieve("server_address")) {
             await (0, Common_1.v1Migration)(this.stateManager);
         }
-        // Error Checking here!!!
-        if (await (0, Common_1.testRequest)(this.stateManager, this.requestManager) instanceof Error) {
+        // Error checking
+        const testResult = await (0, Common_1.testGraphQL)(this.stateManager, this.requestManager);
+        if (testResult instanceof Error) {
             const section = App.createHomeSection({
                 id: "unset",
                 title: "Server Error",
@@ -3485,13 +3816,10 @@ class TachiDesk {
             sectionCallback(section);
             return;
         }
-        // Fetches sources and categories since it runs every time anyway, including after installing the extension
-        // Useful because it fetches the sources and categories from the server, so you won't have to fetch them for settings
-        // Makes settings a lot more stable (as long as homepage sections are loaded before entering settings)
         const serverURL = await (0, Common_1.getServerURL)(this.stateManager);
         const serverSources = await (0, Common_1.getServerSources)(this.stateManager);
         const serverCategories = await (0, Common_1.getServerCategories)(this.stateManager);
-        // only fetches when url has been set, only sets the fetched when the old record is different
+        // Refresh sources/categories on background
         if (serverURL !== Common_1.DEFAULT_SERVER_URL) {
             promises.push((0, Common_1.fetchServerSources)(this.stateManager, this.requestManager).then((response) => {
                 if (JSON.stringify(response) !== JSON.stringify(serverSources)) {
@@ -3504,8 +3832,6 @@ class TachiDesk {
                 }
             }));
         }
-        // Gets the settings values to set the type of rows
-        // Allows for customization of each type of row (updated, category, sources)
         const mangaPerRow = await (0, Common_1.getMangaPerRow)(this.stateManager);
         const updatedRowState = await (0, Common_1.getUpdatedRowState)(this.stateManager);
         const categoryRowState = await (0, Common_1.getCategoryRowState)(this.stateManager);
@@ -3513,225 +3839,222 @@ class TachiDesk {
         const updatedRowStyle = (await (0, Common_1.getUpdatedRowStyle)(this.stateManager))[0];
         const categoryRowStyle = (await (0, Common_1.getCategoryRowStyle)(this.stateManager))[0];
         const sourceRowStyle = (await (0, Common_1.getSourceRowStyle)(this.stateManager))[0];
-        // Push Sections
-        // Uses regular paperback request syntax... could be changed to use the function makeRequest.
+        const sections = [];
         if (updatedRowState) {
             sections.push({
                 section: App.createHomeSection({
                     id: "updated",
                     title: "Recently Updated",
                     containsMoreItems: true,
-                    type: types_1.HomeSectionType[updatedRowStyle] //Converts String to HomeSectionType
+                    type: types_1.HomeSectionType[updatedRowStyle]
                 }),
-                request: App.createRequest({
-                    url: (await (0, Common_1.getServerAPI)(this.stateManager)) + "update/recentChapters/0",
-                    method: "GET"
-                }),
-                responseArray: "page", //Refers to array of manga being inside the response's page key
+                type: "updated",
+                id: 0
             });
         }
         if (categoryRowState) {
-            const serverCategories = await (0, Common_1.fetchServerCategories)(this.stateManager, this.requestManager);
+            const fetchedCategories = await (0, Common_1.fetchServerCategories)(this.stateManager, this.requestManager);
             const selectedCategories = await (0, Common_1.getSelectedCategories)(this.stateManager);
-            //Gets server categories with all request info, filters out to only include selected categories, then compares their order to sort
-            const orderedSelectedCategories = Object.keys(serverCategories)
+            const orderedSelectedCategories = Object.keys(fetchedCategories)
                 .filter((key) => selectedCategories.includes(key))
                 .sort((a, b) => {
-                const aOrder = (0, Common_1.getCategoryFromId)(serverCategories, a).order;
-                const bOrder = (0, Common_1.getCategoryFromId)(serverCategories, b).order;
-                if (aOrder < bOrder) {
+                const aOrder = (0, Common_1.getCategoryFromId)(fetchedCategories, a).order;
+                const bOrder = (0, Common_1.getCategoryFromId)(fetchedCategories, b).order;
+                if (aOrder < bOrder)
                     return -1;
-                }
-                else if (aOrder > bOrder) {
+                if (aOrder > bOrder)
                     return 1;
-                }
                 return 0;
             });
             for (const categoryId of orderedSelectedCategories) {
                 sections.push({
                     section: App.createHomeSection({
                         id: "category-" + categoryId,
-                        title: (0, Common_1.getCategoryNameFromId)(serverCategories, categoryId),
+                        title: (0, Common_1.getCategoryNameFromId)(fetchedCategories, categoryId),
                         containsMoreItems: true,
-                        type: types_1.HomeSectionType[categoryRowStyle] //Converts String to HomeSectionType
+                        type: types_1.HomeSectionType[categoryRowStyle]
                     }),
-                    request: App.createRequest({
-                        url: (await (0, Common_1.getServerAPI)(this.stateManager)) + "category/" + categoryId,
-                        method: "GET"
-                    }),
-                    responseArray: "root" //Refers to array of manga in the response itself
+                    type: "category",
+                    id: categoryId
                 });
             }
         }
         if (sourceRowState) {
-            const serverSources = await (0, Common_1.getServerSources)(this.stateManager);
+            const fetchedSources = await (0, Common_1.getServerSources)(this.stateManager);
             const selectedSources = await (0, Common_1.getSelectedSources)(this.stateManager);
-            // Adds popular and latest... We could add an option to turn each on or off but no idea how to set it up
-            // Should we allow each source to have an option for both? That sounds messy.
-            // Should we allow to turn each type of row on/off entirely? idk.
             for (const sourceId of selectedSources) {
                 sections.push({
                     section: App.createHomeSection({
                         id: "popular-" + sourceId,
-                        title: (0, Common_1.getSourceNameFromId)(serverSources, sourceId) + " (Popular)",
+                        title: (0, Common_1.getSourceNameFromId)(fetchedSources, sourceId) + " (Popular)",
                         containsMoreItems: true,
-                        type: types_1.HomeSectionType[sourceRowStyle] //Converts String to HomeSectionType
+                        type: types_1.HomeSectionType[sourceRowStyle]
                     }),
-                    request: App.createRequest({
-                        url: (await (0, Common_1.getServerAPI)(this.stateManager)) + "source/" + sourceId + "/popular/1",
-                        method: "GET"
-                    }),
-                    responseArray: "mangaList" //Refers to array of manga being inside the response's mangaList key
+                    type: "popular",
+                    id: sourceId
                 });
-                if ((0, Common_1.getSourceFromId)(serverSources, sourceId).supportsLatest) {
+                if ((0, Common_1.getSourceFromId)(fetchedSources, sourceId).supportsLatest) {
                     sections.push({
                         section: App.createHomeSection({
                             id: "latest-" + sourceId,
-                            title: (0, Common_1.getSourceNameFromId)(serverSources, sourceId) + " (Latest)",
+                            title: (0, Common_1.getSourceNameFromId)(fetchedSources, sourceId) + " (Latest)",
                             containsMoreItems: true,
-                            type: types_1.HomeSectionType[sourceRowStyle] //Converts String to HomeSectionType
+                            type: types_1.HomeSectionType[sourceRowStyle]
                         }),
-                        request: App.createRequest({
-                            url: (await (0, Common_1.getServerAPI)(this.stateManager)) + "source/" + sourceId + "/latest/1",
-                            method: "GET"
-                        }),
-                        responseArray: "mangaList" //Refers to array of manga being inside the response's mangaList key
+                        type: "latest",
+                        id: sourceId
                     });
                 }
             }
         }
-        // Run Promises
+        // Execute promises to fill section content
         for (const section of sections) {
             sectionCallback(section.section);
-            promises.push(this.requestManager.schedule(section.request, 1).then(async (response) => {
-                const json = JSON.parse(response.data ?? "");
-                const tiles = [];
-                // Uses the responseAray to get manga list
-                let data;
-                switch (section.responseArray) {
-                    case "page":
-                        data = json.page;
-                        break;
-                    case "mangaList":
-                        data = json.mangaList;
-                        break;
-                    default:
-                        data = json;
-                        break;
-                }
-                // Cuts manga list to the first X amount of manga (from settings)
-                for (const mangaResponse of data.slice(0, mangaPerRow)) {
-                    let manga;
-                    if (section.responseArray === "page") {
-                        manga = mangaResponse.manga;
+            promises.push((async () => {
+                try {
+                    const tiles = [];
+                    let mangas = [];
+                    if (section.type === "updated") {
+                        const res = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_RECENT_CHAPTERS, {
+                            offset: 0,
+                            first: mangaPerRow
+                        });
+                        mangas = res.data.chapters.nodes.map((node) => node.manga);
                     }
-                    else {
-                        manga = mangaResponse;
+                    else if (section.type === "category") {
+                        const res = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_CATEGORY_MANGAS, {
+                            categoryId: parseInt(String(section.id))
+                        });
+                        mangas = res.data.category.mangas.nodes;
                     }
-                    tiles.push(App.createPartialSourceManga({
-                        title: manga.title,
-                        mangaId: manga.id.toString(),
-                        image: (await (0, Common_1.getServerURL)(this.stateManager)) + manga.thumbnailUrl.slice(1)
-                    }));
+                    else if (section.type === "popular" || section.type === "latest") {
+                        const res = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_SOURCE_MANGAS, {
+                            sourceId: String(section.id),
+                            type: section.type.toUpperCase(),
+                            page: 1
+                        });
+                        mangas = res.data.fetchSourceManga.mangas;
+                    }
+                    // De-dup (recent chapters can have duplicates)
+                    const seen = new Set();
+                    for (const manga of mangas.slice(0, mangaPerRow)) {
+                        const idStr = manga.id.toString();
+                        if (seen.has(idStr))
+                            continue;
+                        seen.add(idStr);
+                        tiles.push(App.createPartialSourceManga({
+                            title: manga.title,
+                            mangaId: idStr,
+                            image: manga.thumbnailUrl ? serverURL + manga.thumbnailUrl.replace(/^\//, "") : ""
+                        }));
+                    }
+                    section.section.items = tiles;
+                    sectionCallback(section.section);
                 }
-                section.section.items = tiles;
-                sectionCallback(section.section);
-            }));
+                catch (e) {
+                    console.log(`Error loading section ${section.section.id}: ${e}`);
+                }
+            })());
         }
         await Promise.all(promises);
     }
-    // home sections that contain more items than shown
+    // View more items
     async getViewMoreItems(homepageSectionId, metadata) {
         const sourceId = homepageSectionId.split('-').pop() ?? "";
         const type = homepageSectionId.split("-")[0];
+        const serverURL = await (0, Common_1.getServerURL)(this.stateManager);
         const tiles = [];
-        let page;
-        let apiEndpoint;
-        let response;
-        let tileData;
-        // uses type of source to determine where to get the manga list and the api link
+        let page = metadata?.page ?? 1;
+        let mangas = [];
+        let hasNextPage = false;
         switch (type) {
-            case "updated":
-                page = metadata?.page ?? 1;
-                apiEndpoint = "update/recentChapters/" + page;
-                response = (await (0, Common_1.makeRequest)(this.stateManager, this.requestManager, apiEndpoint));
-                tileData = response.page;
+            case "updated": {
+                const pageSize = 50;
+                const offset = (page - 1) * pageSize;
+                const res = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_RECENT_CHAPTERS, {
+                    offset,
+                    first: pageSize
+                });
+                mangas = res.data.chapters.nodes.map((node) => node.manga);
+                hasNextPage = res.data.chapters.pageInfo.hasNextPage;
                 break;
-            case "category":
-                page = metadata?.page ?? undefined; // Categories don't have pages
-                apiEndpoint = "category/" + sourceId;
-                response = (await (0, Common_1.makeRequest)(this.stateManager, this.requestManager, apiEndpoint));
-                tileData = response;
+            }
+            case "category": {
+                const res = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_CATEGORY_MANGAS, {
+                    categoryId: parseInt(sourceId)
+                });
+                mangas = res.data.category.mangas.nodes;
+                hasNextPage = false; // Categories don't have pages
                 break;
+            }
             case "popular":
             case "latest":
-            default:
-                page = metadata?.page ?? 1;
-                apiEndpoint = "source/" + sourceId + "/" + type + "/" + page;
-                response = (await (0, Common_1.makeRequest)(this.stateManager, this.requestManager, apiEndpoint));
-                tileData = response.mangaList;
+            default: {
+                const res = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_SOURCE_MANGAS, {
+                    sourceId,
+                    type: type.toUpperCase(),
+                    page
+                });
+                mangas = res.data.fetchSourceManga.mangas;
+                hasNextPage = res.data.fetchSourceManga.hasNextPage;
                 break;
+            }
         }
-        // updated list has a manga data and chapter data so have to specify.
-        for (const mangaResponse of tileData) {
-            let manga;
-            if (type === "updated") {
-                manga = mangaResponse.manga;
-            }
-            else {
-                manga = mangaResponse;
-            }
+        const seen = new Set();
+        for (const manga of mangas) {
+            const idStr = manga.id.toString();
+            if (seen.has(idStr))
+                continue;
+            seen.add(idStr);
             tiles.push(App.createPartialSourceManga({
                 title: manga.title,
-                mangaId: manga.id.toString(),
-                image: (await (0, Common_1.getServerURL)(this.stateManager)) + manga.thumbnailUrl.slice(1)
+                mangaId: idStr,
+                image: manga.thumbnailUrl ? serverURL + manga.thumbnailUrl.replace(/^\//, "") : ""
             }));
         }
-        // Pushes the page number and results along
-        // Eventually we might have to look through this to ensure only 1 distinct manga (updated list allows duups)
-        metadata = response.hasNextPage ? { page: page + 1 } : undefined;
+        metadata = hasNextPage ? { page: page + 1 } : undefined;
         return App.createPagedResults({
             results: tiles,
             metadata: metadata
         });
     }
-    // For now only supports searching sources.
-    // Could support filters but it's too complicated since each source has their own set of filters
-    // and paperback considers tachidesk as 1 source.
     async getSearchResults(query, metadata) {
         const serverSources = await (0, Common_1.getServerSources)(this.stateManager);
         const selectedSources = await (0, Common_1.getSelectedSources)(this.stateManager);
         const meta_sources = metadata?.sources ?? {};
         const page = metadata?.page ?? 1;
-        const paramsList = [`pageNum=${page}`];
-        if (query.title !== undefined && query.title !== "") {
-            paramsList.push("searchTerm=" + encodeURIComponent(query.title));
-        }
-        let paramsString = "";
-        if (paramsList.length > 0) {
-            paramsString = "?" + paramsList.join("&");
-        }
+        const serverURL = await (0, Common_1.getServerURL)(this.stateManager);
+        const searchTerm = (query.title && query.title !== "") ? query.title : null;
         const tiles = [];
         for (const source of selectedSources) {
             if (page !== 1) {
                 if (!meta_sources[source])
                     continue;
             }
-            const mangaResults = await (0, Common_1.makeRequest)(this.stateManager, this.requestManager, "source/" + source + "/search" + paramsString);
-            // If request result is an error (evaluated by makeRequest), then skip source
-            // This stops individual sources from messing up the whole search process.
-            if (mangaResults instanceof Error) {
+            try {
+                const result = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_SEARCH_SOURCE, {
+                    sourceId: source,
+                    query: searchTerm,
+                    page
+                });
+                const fetchResult = result.data?.fetchSourceManga;
+                if (!fetchResult) {
+                    continue;
+                }
+                for (const manga of fetchResult.mangas) {
+                    tiles.push(App.createPartialSourceManga({
+                        title: manga.title,
+                        mangaId: String(manga.id),
+                        image: manga.thumbnailUrl ? serverURL + manga.thumbnailUrl.replace(/^\//, "") : "",
+                        subtitle: (0, Common_1.getSourceNameFromId)(serverSources, source)
+                    }));
+                }
+                meta_sources[source] = fetchResult.hasNextPage;
+            }
+            catch (e) {
+                console.log(`Search error for source ${source}: ${e}`);
                 continue;
             }
-            for (const manga of mangaResults.mangaList) {
-                tiles.push(App.createPartialSourceManga({
-                    title: manga.title,
-                    mangaId: String(manga.id),
-                    image: (await (0, Common_1.getServerURL)(this.stateManager)) + manga.thumbnailUrl.slice(1),
-                    subtitle: (0, Common_1.getSourceNameFromId)(serverSources, source)
-                }));
-            }
-            meta_sources[source] = mangaResults.hasNextPage;
         }
         metadata = tiles.length !== 0 ? { page: page + 1, sources: meta_sources } : undefined;
         return App.createPagedResults({
@@ -3739,24 +4062,24 @@ class TachiDesk {
             metadata
         });
     }
-    // This method is only used in 0.9, so it may or may not be completely correct, since it's not been tested.
     async getMangaProgress(mangaId) {
         console.log(`getting manga progress for ${mangaId}`);
-        const manga = await (0, Common_1.makeRequest)(this.stateManager, this.requestManager, "manga/" + mangaId + "/full");
-        console.log(`manga ${mangaId} progress: ${manga}`);
-        if (!manga.lastChapterRead) {
+        const result = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_MANGA_FULL, {
+            id: parseInt(mangaId)
+        });
+        const manga = result.data.manga;
+        if (!manga?.lastReadChapter) {
             return undefined;
         }
         return App.createMangaProgress({
             mangaId: mangaId,
-            lastReadChapterNumber: manga.lastChapterRead.chapterNumber,
+            lastReadChapterNumber: manga.lastReadChapter.chapterNumber,
             lastReadVolumeNumber: undefined,
             trackedListName: undefined,
             userRating: undefined,
         });
     }
-    // we don't have any tracker settings yet so this just no-ops
-    async getMangaProgressManagementForm(mangaId) {
+    async getMangaProgressManagementForm(_mangaId) {
         return App.createDUIForm({
             sections: async () => {
                 return [];
@@ -3767,13 +4090,23 @@ class TachiDesk {
         const chapterReadActions = await actionQueue.queuedChapterReadActions();
         for (const readAction of chapterReadActions) {
             try {
-                let urlPath = "manga/" + readAction.mangaId + "/chapter/" + readAction.sourceChapterId;
                 console.log(`marking mangaId ${readAction.mangaId} with sourceChapterId ${readAction.sourceChapterId} as read`);
-                await (0, Common_1.makeRequest)(this.stateManager, this.requestManager, urlPath, 'PATCH', 'read=true');
+                // sourceChapterId is sourceOrder; resolve to actual chapter id
+                const chapterResult = await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_GET_CHAPTER, {
+                    mangaId: parseInt(readAction.mangaId),
+                    sourceOrder: parseInt(readAction.sourceChapterId)
+                });
+                const chapterNode = chapterResult.data?.chapters?.nodes?.[0];
+                if (!chapterNode) {
+                    throw new Error(`Chapter not found for manga ${readAction.mangaId} order ${readAction.sourceChapterId}`);
+                }
+                await (0, Common_1.graphqlRequest)(this.stateManager, this.requestManager, GQL_UPDATE_CHAPTER_READ, {
+                    id: chapterNode.id
+                });
                 await actionQueue.discardChapterReadAction(readAction);
             }
             catch (error) {
-                console.log(error);
+                console.log(`Error in processChapterReadActionQueue: ${error}`);
                 await actionQueue.retryChapterReadAction(readAction);
             }
         }
