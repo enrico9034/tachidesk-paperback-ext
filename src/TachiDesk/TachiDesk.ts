@@ -43,7 +43,6 @@ import {
     getMangaPerRow,
     getSelectedCategories,
     getSelectedSources,
-    getServerAPI,
     getServerCategories,
     getServerSources,
     getServerURL,
@@ -53,22 +52,20 @@ import {
     getSourceRowStyle,
     getUpdatedRowState,
     getUpdatedRowStyle,
-    makeRequest,
+    graphqlRequest,
     serverUnavailableMangaTiles,
     setServerCategories,
     setServerSources,
-    tachiChapter,
-    tachiManga,
-    testRequest,
+    testGraphQL,
     v1Migration
 } from "./Common";
 
 export const TachiDeskInfo: SourceInfo = {
     author: 'ofelizestevez & Alles',
-    description: 'Paperback extension which aims to bridge all of Tachidesks features and the Paperback App.',
+    description: 'Paperback extension which aims to bridge all of Tachidesks features and the Paperback App. (GraphQL)',
     icon: 'icon.png',
     name: 'Tachidesk',
-    version: '2.1.0',
+    version: '3.0.0',
     websiteBaseURL: "https://github.com/Suwayomi/Tachidesk-Server",
     contentRating: ContentRating.EVERYONE,
     sourceTags: [
@@ -80,13 +77,185 @@ export const TachiDeskInfo: SourceInfo = {
     intents: SourceIntents.MANGA_CHAPTERS | SourceIntents.SETTINGS_UI | SourceIntents.HOMEPAGE_SECTIONS | SourceIntents.MANGA_TRACKING
 }
 
+// =================================================================
+// GraphQL Query / Mutation Definitions
+// =================================================================
+
+const GQL_GET_MANGA = `
+    query GetManga($id: Int!) {
+        manga(id: $id) {
+            id
+            title
+            author
+            artist
+            description
+            genre
+            status
+            thumbnailUrl
+            lastFetchedAt
+        }
+    }
+`;
+
+const GQL_GET_MANGA_ONLINE_FETCH = `
+    mutation FetchManga($id: Int!) {
+        fetchManga(input: { id: $id }) {
+            manga {
+                id
+                title
+                lastFetchedAt
+            }
+        }
+    }
+`;
+
+const GQL_GET_CHAPTERS = `
+    query GetChapters($mangaId: Int!) {
+        chapters(condition: { mangaId: $mangaId }, orderBy: SOURCE_ORDER, orderByType: DESC) {
+            nodes {
+                id
+                sourceOrder
+                name
+                chapterNumber
+                uploadDate
+                pageCount
+                mangaId
+            }
+        }
+    }
+`;
+
+const GQL_FETCH_CHAPTERS = `
+    mutation FetchChapters($mangaId: Int!) {
+        fetchChapters(input: { mangaId: $mangaId }) {
+            chapters {
+                id
+                sourceOrder
+            }
+        }
+    }
+`;
+
+const GQL_GET_CHAPTER = `
+    query GetChapter($mangaId: Int!, $sourceOrder: Int!) {
+        chapters(condition: { mangaId: $mangaId, sourceOrder: $sourceOrder }, first: 1) {
+            nodes {
+                id
+                sourceOrder
+                name
+                chapterNumber
+                pageCount
+                mangaId
+            }
+        }
+    }
+`;
+
+const GQL_FETCH_CHAPTER_PAGES = `
+    mutation FetchChapterPages($chapterId: Int!) {
+        fetchChapterPages(input: { chapterId: $chapterId }) {
+            pages
+        }
+    }
+`;
+
+const GQL_GET_RECENT_CHAPTERS = `
+    query GetRecentChapters($offset: Int, $first: Int) {
+        chapters(
+            condition: { isDownloaded: false }
+            orderBy: FETCHED_AT
+            orderByType: DESC
+            offset: $offset
+            first: $first
+        ) {
+            nodes {
+                id
+                name
+                manga {
+                    id
+                    title
+                    thumbnailUrl
+                }
+            }
+            pageInfo {
+                hasNextPage
+            }
+        }
+    }
+`;
+
+const GQL_GET_CATEGORY_MANGAS = `
+    query GetCategoryMangas($categoryId: Int!) {
+        category(id: $categoryId) {
+            id
+            name
+            mangas {
+                nodes {
+                    id
+                    title
+                    thumbnailUrl
+                }
+            }
+        }
+    }
+`;
+
+const GQL_GET_SOURCE_MANGAS = `
+    query GetSourceMangas($sourceId: LongString!, $type: FetchSourceMangaType!, $page: Int!) {
+        fetchSourceManga(input: { source: $sourceId, type: $type, page: $page }) {
+            hasNextPage
+            mangas {
+                id
+                title
+                thumbnailUrl
+            }
+        }
+    }
+`;
+
+const GQL_SEARCH_SOURCE = `
+    query SearchSource($sourceId: LongString!, $query: String, $page: Int!) {
+        fetchSourceManga(input: { source: $sourceId, type: SEARCH, page: $page, query: $query }) {
+            hasNextPage
+            mangas {
+                id
+                title
+                thumbnailUrl
+            }
+        }
+    }
+`;
+
+const GQL_GET_MANGA_FULL = `
+    query GetMangaFull($id: Int!) {
+        manga(id: $id) {
+            id
+            title
+            lastReadChapter {
+                id
+                chapterNumber
+            }
+        }
+    }
+`;
+
+const GQL_UPDATE_CHAPTER_READ = `
+    mutation UpdateChapter($id: Int!) {
+        updateChapter(input: { id: $id, patch: { isRead: true } }) {
+            chapter {
+                id
+                isRead
+            }
+        }
+    }
+`;
+
 export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding {
     stateManager = App.createSourceStateManager();
     requestManager = App.createRequestManager({
         requestsPerSecond: 4,
         requestTimeout: 20000,
         interceptor: {
-            // Intercepts request to add basic auth
             interceptRequest: async (request: Request) => {
                 const authEnabled = await getAuthState(this.stateManager);
 
@@ -105,7 +274,6 @@ export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding
         }
     })
 
-    // Variable used for share URL, updated by getChapters()
     serverAddress = ""
 
     // Settings
@@ -134,60 +302,79 @@ export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding
         return ""
     }
 
-    // Manga info -> uses TachiManga interface
     async getMangaDetails(mangaId: string): Promise<SourceManga> {
-        const manga: tachiManga = await makeRequest(this.stateManager, this.requestManager, "manga/" + mangaId)
+        const result = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_MANGA, {
+            id: parseInt(mangaId)
+        });
+
+        const manga = result.data.manga;
+        const serverURL = await getServerURL(this.stateManager);
+
         const tags: [TagSection] = [
             App.createTagSection({
                 id: "0",
                 label: "genres",
-                tags: manga.genre.map((tag: string) => App.createTag({
+                tags: (manga.genre ?? []).map((tag: string) => App.createTag({
                     id: tag,
                     label: tag
                 }))
             })
-        ]
+        ];
 
         return App.createSourceManga({
             id: mangaId,
             mangaInfo: App.createMangaInfo({
                 titles: [manga.title],
-                image: (await getServerURL(this.stateManager)) + manga.thumbnailUrl.slice(1),
-                author: manga.author,
-                artist: manga.artist,
-                desc: manga.description,
-                status: manga.status,
+                image: manga.thumbnailUrl ? serverURL + manga.thumbnailUrl.replace(/^\//, "") : "",
+                author: manga.author ?? "",
+                artist: manga.artist ?? "",
+                desc: manga.description ?? "",
+                status: manga.status ?? "",
                 tags
             })
         })
     }
 
-    // Chapter list, sets the share URl address
     async getChapters(mangaId: string): Promise<Chapter[]> {
-        // Fetches manga first to use to check last fetched at
-        const manga: tachiManga = await makeRequest(this.stateManager, this.requestManager, "manga/" + mangaId)
-        let chaptersQueryString = "manga/" + mangaId + "/chapters"
+        const mangaIdInt = parseInt(mangaId);
 
-        // If last fetched is older than a day ago, do an online fetch for the manga and the chapter list
-        // Online fetch manga to update the manga.lastFetchedAt. Seems redundant but now idea how to improve
-        if (manga.lastFetchedAt < Math.floor(Date.now() / 1000) - 86400) {
-            makeRequest(this.stateManager, this.requestManager, "manga/" + mangaId + "?onlineFetch=true")
-            chaptersQueryString += "?onlineFetch=true"
+        // Get manga to check lastFetchedAt
+        const mangaResult = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_MANGA, {
+            id: mangaIdInt
+        });
+        const manga = mangaResult.data.manga;
+
+        // If last fetched more than a day ago, fetch online
+        const lastFetched = parseInt(manga.lastFetchedAt ?? "0");
+        if (lastFetched < Math.floor(Date.now() / 1000) - 86400) {
+            try {
+                await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_MANGA_ONLINE_FETCH, {
+                    id: mangaIdInt
+                });
+                await graphqlRequest(this.stateManager, this.requestManager, GQL_FETCH_CHAPTERS, {
+                    mangaId: mangaIdInt
+                });
+            } catch (e) {
+                console.log(`Error during online fetch: ${e}`);
+            }
         }
 
-        const chaptersData: tachiChapter[] = await makeRequest(this.stateManager, this.requestManager, chaptersQueryString)
-        this.serverAddress = await getServerURL(this.stateManager)
+        const chaptersResult = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_CHAPTERS, {
+            mangaId: mangaIdInt
+        });
 
-        const chapters: Chapter[] = []
+        this.serverAddress = await getServerURL(this.stateManager);
 
-        for (const chapter of chaptersData) {
+        const chapters: Chapter[] = [];
+
+        for (const chapter of chaptersResult.data.chapters.nodes) {
             chapters.push(
                 App.createChapter({
-                    id: chapter.index.toString(),
+                    id: chapter.sourceOrder.toString(),
                     name: chapter.name,
                     chapNum: chapter.chapterNumber,
-                    time: new Date(chapter.uploadDate),
-                    sortingIndex: chapter.index
+                    time: new Date(parseInt(chapter.uploadDate)),
+                    sortingIndex: chapter.sourceOrder
                 })
             )
         }
@@ -195,17 +382,38 @@ export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding
         return chapters
     }
 
-    // Provides pages for chapter
     async getChapterDetails(mangaId: string, chapterId: string): Promise<ChapterDetails> {
-        const apiURL = await getServerAPI(this.stateManager)
-        const chapterData: tachiChapter = await makeRequest(this.stateManager, this.requestManager, "manga/" + mangaId + "/chapter/" + chapterId)
+        const serverURL = await getServerURL(this.stateManager);
 
-        const pages: string[] = []
+        // chapterId here is the sourceOrder. We need to look up the actual chapter id.
+        const chapterResult = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_CHAPTER, {
+            mangaId: parseInt(mangaId),
+            sourceOrder: parseInt(chapterId)
+        });
 
-        // Tachidesk uses page count, so make an array of length pageCount then use the keys of array LOL
-        // pretty much a for i in range() from python
-        for (const pageIndex of Array(chapterData.pageCount).keys()) {
-            pages.push(apiURL + "manga/" + mangaId + "/chapter/" + chapterId + "/page/" + pageIndex)
+        const chapterNode = chapterResult.data.chapters.nodes[0];
+        if (!chapterNode) {
+            throw new Error(`Chapter not found for mangaId=${mangaId}, sourceOrder=${chapterId}`);
+        }
+
+        // Trigger page fetch (also gets the page URLs)
+        const pagesResult = await graphqlRequest(this.stateManager, this.requestManager, GQL_FETCH_CHAPTER_PAGES, {
+            chapterId: chapterNode.id
+        });
+
+        let pages: string[] = [];
+        const fetchedPages: string[] | undefined = pagesResult.data?.fetchChapterPages?.pages;
+
+        if (fetchedPages && fetchedPages.length > 0) {
+            pages = fetchedPages.map((p) => {
+                if (p.startsWith("http")) return p;
+                return serverURL + p.replace(/^\//, "");
+            });
+        } else {
+            // Fallback: construct page URLs from pageCount
+            for (const pageIndex of Array(chapterNode.pageCount).keys()) {
+                pages.push(`${serverURL}api/v1/manga/${mangaId}/chapter/${chapterId}/page/${pageIndex}`);
+            }
         }
 
         return App.createChapterDetails({
@@ -215,18 +423,18 @@ export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding
         })
     }
 
-    // Homepage sections (updated, library categories, sources)
+    // Homepage sections
     async getHomePageSections(sectionCallback: (section: HomeSection) => void): Promise<void> {
-        const promises: Promise<void>[] = []
-        const sections = []
+        const promises: Promise<void>[] = [];
 
-        // Checks if you need to migrate from v1
+        // Check for v1 migration
         if (await this.stateManager.retrieve("server_address")) {
             await v1Migration(this.stateManager)
         }
 
-        // Error Checking here!!!
-        if (await testRequest(this.stateManager, this.requestManager) instanceof Error) {
+        // Error checking
+        const testResult = await testGraphQL(this.stateManager, this.requestManager);
+        if (testResult instanceof Error) {
             const section = App.createHomeSection({
                 id: "unset",
                 title: "Server Error",
@@ -238,14 +446,11 @@ export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding
             return;
         }
 
-        // Fetches sources and categories since it runs every time anyway, including after installing the extension
-        // Useful because it fetches the sources and categories from the server, so you won't have to fetch them for settings
-        // Makes settings a lot more stable (as long as homepage sections are loaded before entering settings)
         const serverURL = await getServerURL(this.stateManager);
         const serverSources = await getServerSources(this.stateManager);
         const serverCategories = await getServerCategories(this.stateManager);
 
-        // only fetches when url has been set, only sets the fetched when the old record is different
+        // Refresh sources/categories on background
         if (serverURL !== DEFAULT_SERVER_URL) {
             promises.push(
                 fetchServerSources(this.stateManager, this.requestManager).then((response) => {
@@ -264,8 +469,6 @@ export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding
             )
         }
 
-        // Gets the settings values to set the type of rows
-        // Allows for customization of each type of row (updated, category, sources)
         const mangaPerRow = await getMangaPerRow(this.stateManager);
         const updatedRowState = await getUpdatedRowState(this.stateManager);
         const categoryRowState = await getCategoryRowState(this.stateManager);
@@ -274,230 +477,216 @@ export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding
         const categoryRowStyle = (await getCategoryRowStyle(this.stateManager))[0];
         const sourceRowStyle = (await getSourceRowStyle(this.stateManager))[0];
 
-        // Push Sections
-        // Uses regular paperback request syntax... could be changed to use the function makeRequest.
+        type SectionDef = {
+            section: HomeSection;
+            type: "updated" | "category" | "popular" | "latest";
+            id: string | number;
+        };
+        const sections: SectionDef[] = [];
+
         if (updatedRowState) {
             sections.push({
                 section: App.createHomeSection({
                     id: "updated",
                     title: "Recently Updated",
                     containsMoreItems: true,
-                    type: HomeSectionType[updatedRowStyle as keyof typeof HomeSectionType] //Converts String to HomeSectionType
+                    type: HomeSectionType[updatedRowStyle as keyof typeof HomeSectionType]
                 }),
-                request: App.createRequest({
-                    url: (await getServerAPI(this.stateManager)) + "update/recentChapters/0",
-                    method: "GET"
-                }),
-                responseArray: "page", //Refers to array of manga being inside the response's page key
+                type: "updated",
+                id: 0
             })
         }
+
         if (categoryRowState) {
-            const serverCategories = await fetchServerCategories(this.stateManager, this.requestManager)
+            const fetchedCategories = await fetchServerCategories(this.stateManager, this.requestManager)
             const selectedCategories: Array<string> = await getSelectedCategories(this.stateManager)
 
-            //Gets server categories with all request info, filters out to only include selected categories, then compares their order to sort
-            const orderedSelectedCategories = Object.keys(serverCategories)
+            const orderedSelectedCategories = Object.keys(fetchedCategories)
                 .filter((key) => selectedCategories.includes(key))
                 .sort((a, b) => {
-                    const aOrder = getCategoryFromId(serverCategories, a).order
-                    const bOrder = getCategoryFromId(serverCategories, b).order
-
-                    if (aOrder < bOrder) {
-                        return -1
-                    }
-                    else if (aOrder > bOrder) {
-                        return 1
-                    }
-                    return 0
+                    const aOrder = getCategoryFromId(fetchedCategories, a).order
+                    const bOrder = getCategoryFromId(fetchedCategories, b).order
+                    if (aOrder < bOrder) return -1;
+                    if (aOrder > bOrder) return 1;
+                    return 0;
                 })
 
             for (const categoryId of orderedSelectedCategories) {
                 sections.push({
                     section: App.createHomeSection({
                         id: "category-" + categoryId,
-                        title: getCategoryNameFromId(serverCategories, categoryId),
+                        title: getCategoryNameFromId(fetchedCategories, categoryId),
                         containsMoreItems: true,
-                        type: HomeSectionType[categoryRowStyle as keyof typeof HomeSectionType] //Converts String to HomeSectionType
+                        type: HomeSectionType[categoryRowStyle as keyof typeof HomeSectionType]
                     }),
-                    request: App.createRequest({
-                        url: (await getServerAPI(this.stateManager)) + "category/" + categoryId,
-                        method: "GET"
-                    }),
-                    responseArray: "root" //Refers to array of manga in the response itself
+                    type: "category",
+                    id: categoryId
                 })
             }
         }
+
         if (sourceRowState) {
-            const serverSources = await getServerSources(this.stateManager);
+            const fetchedSources = await getServerSources(this.stateManager);
             const selectedSources = await getSelectedSources(this.stateManager);
 
-            // Adds popular and latest... We could add an option to turn each on or off but no idea how to set it up
-            // Should we allow each source to have an option for both? That sounds messy.
-            // Should we allow to turn each type of row on/off entirely? idk.
             for (const sourceId of selectedSources) {
                 sections.push({
                     section: App.createHomeSection({
                         id: "popular-" + sourceId,
-                        title: getSourceNameFromId(serverSources, sourceId) + " (Popular)",
+                        title: getSourceNameFromId(fetchedSources, sourceId) + " (Popular)",
                         containsMoreItems: true,
-                        type: HomeSectionType[sourceRowStyle as keyof typeof HomeSectionType] //Converts String to HomeSectionType
+                        type: HomeSectionType[sourceRowStyle as keyof typeof HomeSectionType]
                     }),
-                    request: App.createRequest({
-                        url: (await getServerAPI(this.stateManager)) + "source/" + sourceId + "/popular/1",
-                        method: "GET"
-                    }),
-                    responseArray: "mangaList" //Refers to array of manga being inside the response's mangaList key
+                    type: "popular",
+                    id: sourceId
                 })
 
-                if (getSourceFromId(serverSources, sourceId).supportsLatest) {
+                if (getSourceFromId(fetchedSources, sourceId).supportsLatest) {
                     sections.push({
                         section: App.createHomeSection({
                             id: "latest-" + sourceId,
-                            title: getSourceNameFromId(serverSources, sourceId) + " (Latest)",
+                            title: getSourceNameFromId(fetchedSources, sourceId) + " (Latest)",
                             containsMoreItems: true,
-                            type: HomeSectionType[sourceRowStyle as keyof typeof HomeSectionType] //Converts String to HomeSectionType
+                            type: HomeSectionType[sourceRowStyle as keyof typeof HomeSectionType]
                         }),
-                        request: App.createRequest({
-                            url: (await getServerAPI(this.stateManager)) + "source/" + sourceId + "/latest/1",
-                            method: "GET"
-                        }),
-                        responseArray: "mangaList" //Refers to array of manga being inside the response's mangaList key
+                        type: "latest",
+                        id: sourceId
                     })
                 }
             }
         }
 
-        // Run Promises
+        // Execute promises to fill section content
         for (const section of sections) {
             sectionCallback(section.section)
 
-            promises.push(
-                this.requestManager.schedule(section.request, 1).then(async response => {
-                    const json = JSON.parse(response.data ?? "")
-                    const tiles = []
+            promises.push((async () => {
+                try {
+                    const tiles = [];
+                    let mangas: any[] = [];
 
-                    // Uses the responseAray to get manga list
-                    let data;
-                    switch (section.responseArray) {
-                        case "page":
-                            data = json.page
-                            break
-                        case "mangaList":
-                            data = json.mangaList
-                            break;
-                        default:
-                            data = json
-                            break;
+                    if (section.type === "updated") {
+                        const res = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_RECENT_CHAPTERS, {
+                            offset: 0,
+                            first: mangaPerRow
+                        });
+                        mangas = res.data.chapters.nodes.map((node: any) => node.manga);
+                    } else if (section.type === "category") {
+                        const res = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_CATEGORY_MANGAS, {
+                            categoryId: parseInt(String(section.id))
+                        });
+                        mangas = res.data.category.mangas.nodes;
+                    } else if (section.type === "popular" || section.type === "latest") {
+                        const res = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_SOURCE_MANGAS, {
+                            sourceId: String(section.id),
+                            type: section.type.toUpperCase(),
+                            page: 1
+                        });
+                        mangas = res.data.fetchSourceManga.mangas;
                     }
 
-                    // Cuts manga list to the first X amount of manga (from settings)
-                    for (const mangaResponse of data.slice(0, mangaPerRow)) {
-                        let manga: tachiManga;
-                        if (section.responseArray === "page") {
-                            manga = mangaResponse.manga
-                        }
-                        else {
-                            manga = mangaResponse
-                        }
+                    // De-dup (recent chapters can have duplicates)
+                    const seen = new Set<string>();
+                    for (const manga of mangas.slice(0, mangaPerRow)) {
+                        const idStr = manga.id.toString();
+                        if (seen.has(idStr)) continue;
+                        seen.add(idStr);
 
                         tiles.push(
                             App.createPartialSourceManga({
                                 title: manga.title,
-                                mangaId: manga.id.toString(),
-                                image: (await getServerURL(this.stateManager)) + manga.thumbnailUrl.slice(1)
+                                mangaId: idStr,
+                                image: manga.thumbnailUrl ? serverURL + manga.thumbnailUrl.replace(/^\//, "") : ""
                             })
                         )
                     }
 
-                    section.section.items = tiles
-                    sectionCallback(section.section)
-                })
-            )
+                    section.section.items = tiles;
+                    sectionCallback(section.section);
+                } catch (e) {
+                    console.log(`Error loading section ${section.section.id}: ${e}`);
+                }
+            })())
         }
 
         await Promise.all(promises)
     }
 
-    // home sections that contain more items than shown
+    // View more items
     async getViewMoreItems(homepageSectionId: string, metadata: any): Promise<PagedResults> {
         const sourceId = homepageSectionId.split('-').pop() ?? ""
         const type = homepageSectionId.split("-")[0]
+        const serverURL = await getServerURL(this.stateManager);
 
         const tiles = [];
-        let page;
-        let apiEndpoint: any;
-        let response;
-        let tileData: any;
+        let page = metadata?.page ?? 1;
+        let mangas: any[] = [];
+        let hasNextPage = false;
 
-        // uses type of source to determine where to get the manga list and the api link
         switch (type) {
-            case "updated":
-                page = metadata?.page ?? 1
-                apiEndpoint = "update/recentChapters/" + page;
-                response = (await makeRequest(this.stateManager, this.requestManager, apiEndpoint));
-                tileData = response.page
-                break
-            case "category":
-                page = metadata?.page ?? undefined // Categories don't have pages
-                apiEndpoint = "category/" + sourceId;
-                response = (await makeRequest(this.stateManager, this.requestManager, apiEndpoint));
-                tileData = response
-                break
+            case "updated": {
+                const pageSize = 50;
+                const offset = (page - 1) * pageSize;
+                const res = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_RECENT_CHAPTERS, {
+                    offset,
+                    first: pageSize
+                });
+                mangas = res.data.chapters.nodes.map((node: any) => node.manga);
+                hasNextPage = res.data.chapters.pageInfo.hasNextPage;
+                break;
+            }
+            case "category": {
+                const res = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_CATEGORY_MANGAS, {
+                    categoryId: parseInt(sourceId)
+                });
+                mangas = res.data.category.mangas.nodes;
+                hasNextPage = false; // Categories don't have pages
+                break;
+            }
             case "popular":
             case "latest":
-            default:
-                page = metadata?.page ?? 1
-                apiEndpoint = "source/" + sourceId + "/" + type + "/" + page;
-                response = (await makeRequest(this.stateManager, this.requestManager, apiEndpoint));
-                tileData = response.mangaList
+            default: {
+                const res = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_SOURCE_MANGAS, {
+                    sourceId,
+                    type: type.toUpperCase(),
+                    page
+                });
+                mangas = res.data.fetchSourceManga.mangas;
+                hasNextPage = res.data.fetchSourceManga.hasNextPage;
                 break;
+            }
         }
 
-        // updated list has a manga data and chapter data so have to specify.
-        for (const mangaResponse of tileData) {
-            let manga: tachiManga;
-            if (type === "updated") {
-                manga = mangaResponse.manga
-            }
-            else {
-                manga = mangaResponse
-            }
+        const seen = new Set<string>();
+        for (const manga of mangas) {
+            const idStr = manga.id.toString();
+            if (seen.has(idStr)) continue;
+            seen.add(idStr);
 
             tiles.push(
                 App.createPartialSourceManga({
                     title: manga.title,
-                    mangaId: manga.id.toString(),
-                    image: (await getServerURL(this.stateManager)) + manga.thumbnailUrl.slice(1)
+                    mangaId: idStr,
+                    image: manga.thumbnailUrl ? serverURL + manga.thumbnailUrl.replace(/^\//, "") : ""
                 })
             )
         }
 
-        // Pushes the page number and results along
-        // Eventually we might have to look through this to ensure only 1 distinct manga (updated list allows duups)
-        metadata = response.hasNextPage ? { page: page + 1 } : undefined
+        metadata = hasNextPage ? { page: page + 1 } : undefined
         return App.createPagedResults({
             results: tiles,
             metadata: metadata
         })
     }
 
-    // For now only supports searching sources.
-    // Could support filters but it's too complicated since each source has their own set of filters
-    // and paperback considers tachidesk as 1 source.
     async getSearchResults(query: SearchRequest, metadata: any): Promise<PagedResults> {
-        const serverSources = await getServerSources(this.stateManager)
-        const selectedSources = await getSelectedSources(this.stateManager)
-        const meta_sources: { [key: string]: boolean } = metadata?.sources ?? {}
+        const serverSources = await getServerSources(this.stateManager);
+        const selectedSources = await getSelectedSources(this.stateManager);
+        const meta_sources: { [key: string]: boolean } = metadata?.sources ?? {};
         const page: number = metadata?.page ?? 1;
+        const serverURL = await getServerURL(this.stateManager);
 
-        const paramsList = [`pageNum=${page}`];
-        if (query.title !== undefined && query.title !== "") {
-            paramsList.push("searchTerm=" + encodeURIComponent(query.title));
-        }
-        let paramsString = "";
-        if (paramsList.length > 0) {
-            paramsString = "?" + paramsList.join("&");
-        }
+        const searchTerm = (query.title && query.title !== "") ? query.title : null;
 
         const tiles = []
         for (const source of selectedSources) {
@@ -505,25 +694,33 @@ export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding
                 if (!meta_sources[source]) continue
             }
 
-            const mangaResults = await makeRequest(this.stateManager, this.requestManager, "source/" + source + "/search" + paramsString)
+            try {
+                const result = await graphqlRequest(this.stateManager, this.requestManager, GQL_SEARCH_SOURCE, {
+                    sourceId: source,
+                    query: searchTerm,
+                    page
+                });
 
-            // If request result is an error (evaluated by makeRequest), then skip source
-            // This stops individual sources from messing up the whole search process.
-            if (mangaResults instanceof Error) {
-                continue
-            }
+                const fetchResult = result.data?.fetchSourceManga;
+                if (!fetchResult) {
+                    continue;
+                }
 
-            for (const manga of mangaResults.mangaList) {
-                tiles.push(
-                    App.createPartialSourceManga({
-                        title: manga.title,
-                        mangaId: String(manga.id),
-                        image: (await getServerURL(this.stateManager)) + manga.thumbnailUrl.slice(1),
-                        subtitle: getSourceNameFromId(serverSources, source)
-                    })
-                )
+                for (const manga of fetchResult.mangas) {
+                    tiles.push(
+                        App.createPartialSourceManga({
+                            title: manga.title,
+                            mangaId: String(manga.id),
+                            image: manga.thumbnailUrl ? serverURL + manga.thumbnailUrl.replace(/^\//, "") : "",
+                            subtitle: getSourceNameFromId(serverSources, source)
+                        })
+                    )
+                }
+                meta_sources[source] = fetchResult.hasNextPage;
+            } catch (e) {
+                console.log(`Search error for source ${source}: ${e}`);
+                continue;
             }
-            meta_sources[source] = mangaResults.hasNextPage
         }
 
         metadata = tiles.length !== 0 ? { page: page + 1, sources: meta_sources } : undefined
@@ -534,25 +731,26 @@ export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding
         })
     }
 
-    // This method is only used in 0.9, so it may or may not be completely correct, since it's not been tested.
     async getMangaProgress(mangaId: string): Promise<MangaProgress | undefined> {
         console.log(`getting manga progress for ${mangaId}`);
-        const manga: tachiManga = await makeRequest(this.stateManager, this.requestManager, "manga/" + mangaId + "/full")
-        console.log(`manga ${mangaId} progress: ${manga}`);
-        if (!manga.lastChapterRead) {
+        const result = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_MANGA_FULL, {
+            id: parseInt(mangaId)
+        });
+        const manga = result.data.manga;
+
+        if (!manga?.lastReadChapter) {
             return undefined
         }
         return App.createMangaProgress({
             mangaId: mangaId,
-            lastReadChapterNumber: manga.lastChapterRead.chapterNumber,
+            lastReadChapterNumber: manga.lastReadChapter.chapterNumber,
             lastReadVolumeNumber: undefined,
-            trackedListName:  undefined,
+            trackedListName: undefined,
             userRating: undefined,
         })
     }
 
-    // we don't have any tracker settings yet so this just no-ops
-    async getMangaProgressManagementForm(mangaId: string): Promise<DUIForm> {
+    async getMangaProgressManagementForm(_mangaId: string): Promise<DUIForm> {
         return App.createDUIForm({
             sections: async () => {
                 return []
@@ -565,12 +763,26 @@ export class TachiDesk implements PaperbackExtensionBase, MangaProgressProviding
 
         for (const readAction of chapterReadActions) {
             try {
-                let urlPath = "manga/" + readAction.mangaId + "/chapter/" + readAction.sourceChapterId;
                 console.log(`marking mangaId ${readAction.mangaId} with sourceChapterId ${readAction.sourceChapterId} as read`)
-                await makeRequest(this.stateManager, this.requestManager, urlPath, 'PATCH', 'read=true')
+
+                // sourceChapterId is sourceOrder; resolve to actual chapter id
+                const chapterResult = await graphqlRequest(this.stateManager, this.requestManager, GQL_GET_CHAPTER, {
+                    mangaId: parseInt(readAction.mangaId),
+                    sourceOrder: parseInt(readAction.sourceChapterId)
+                });
+
+                const chapterNode = chapterResult.data?.chapters?.nodes?.[0];
+                if (!chapterNode) {
+                    throw new Error(`Chapter not found for manga ${readAction.mangaId} order ${readAction.sourceChapterId}`);
+                }
+
+                await graphqlRequest(this.stateManager, this.requestManager, GQL_UPDATE_CHAPTER_READ, {
+                    id: chapterNode.id
+                });
+
                 await actionQueue.discardChapterReadAction(readAction)
             } catch (error) {
-                console.log(error)
+                console.log(`Error in processChapterReadActionQueue: ${error}`)
                 await actionQueue.retryChapterReadAction(readAction)
             }
         }
