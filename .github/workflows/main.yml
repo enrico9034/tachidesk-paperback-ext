@@ -1,38 +1,58 @@
+name: Bundle and Publish Sources
+
 on:
   push:
     branches:
       - master
   pull_request:
-      types: [closed]
-      branches:
-          - master
-name: Bundle and Publish Sources
+    types: [closed]
+    branches:
+      - master
+  workflow_dispatch:
+
+# Allow only one concurrent deployment per branch
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Bundle and Publish Sources
     runs-on: ubuntu-latest
-
+    # Only run on push to master, or on merged PRs (not just closed)
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     strategy:
       matrix:
-        node-version: [14.x]
+        node-version: [20.x]
 
     steps:
       - name: Checkout Branch
-        uses: actions/checkout@v2
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v1
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
-      - run: npm install
-      - run: npm run bundle
-      - run: npx typedoc -out bundles/docs
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bundle sources
+        run: npx paperback bundle
+
+      - name: Generate TypeDoc (optional)
+        run: npx typedoc --out bundles/docs || true
         continue-on-error: true
 
-      - name: Deploy
-        uses: s0/git-publish-subdir-action@master
+      - name: Deploy to GitHub Pages
+        uses: s0/git-publish-subdir-action@develop
         env:
           REPO: self
           BRANCH: gh-pages
           FOLDER: bundles
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MESSAGE: "Build: ({sha}) {msg}"
