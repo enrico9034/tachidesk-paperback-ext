@@ -17,6 +17,7 @@ export function serverUnavailableMangaTiles() {
 // StateManager Keys
 export const SERVER_URL_KEY = "serverURL";
 export const SERVER_API_KEY = "serverAPI";
+export const SERVER_GRAPHQL_KEY = "serverGraphQL";
 export const AUTH_STATE_KEY = "AuthState";
 export const AUTH_STRING_KEY = "AuthString";
 export const USERNAME_KEY = "serverUsername";
@@ -41,7 +42,9 @@ export const SOURCE_ROW_STYLE_KEY = "sourceRowStyle"
 // Defaults
 export const DEFAULT_SERVER_URL = "http://127.0.0.1:4567/";
 export const DEFAULT_API_ENDPOINT = "api/v1/";
+export const DEFAULT_GRAPHQL_ENDPOINT = "api/graphql";
 export const DEFAULT_SERVER_API = DEFAULT_SERVER_URL + DEFAULT_API_ENDPOINT;
+export const DEFAULT_SERVER_GRAPHQL = DEFAULT_SERVER_URL + DEFAULT_GRAPHQL_ENDPOINT;
 export const DEFAULT_AUTH_STATE = false;
 export const DEFAULT_AUTH_STRING = "";
 export const DEFAULT_USERNAME = "";
@@ -90,50 +93,49 @@ export const DEFAULT_SOURCE_ROW_STYLE = ["singleRowNormal"]
 
 export const rowStyles = ["singleRowNormal", "singleRowLarge", "featured", "doubleRow"]
 export const languages: Record<string, string> = {
-    'ar': 'اَلْعَرَبِيَّةُ', // Arabic
-    'bg': 'български', // Bulgarian
-    'bn': 'বাংলা', // Bengali
-    'ca': 'Català', // Catalan
-    'cs': 'Čeština', // Czech
-    'da': 'Dansk', // Danish
-    'de': 'Deutsch', // German
-    'en': 'English', // English
-    'es': 'Español', // Spanish
-    'es-419': 'Español (Latinoamérica)', // Spanish (Latin American)
-    'fa': 'فارسی', // Farsi
-    'fi': 'Suomi', // Finnish
-    'fr': 'Français', // French
-    'he': 'עִבְרִית', // Hebrew
-    'hi': 'हिन्दी', // Hindi
-    'hu': 'Magyar', // Hungarian
-    'id': 'Indonesia', // Indonesian
-    'it': 'Italiano', // Italian
-    'ja': '日本語', // Japanese
-    'ko': '한국어', // Korean
-    'lt': 'Lietuvių', // Lithuanian
-    'mn': 'монгол', // Mongolian
-    'ms': 'Melayu', // Malay
-    'my': 'မြန်မာဘာသာ', // Burmese
-    'nl': 'Nederlands', // Dutch
-    'no': 'Norsk', // Norwegian
-    'pl': 'Polski', // Polish
-    'pt': 'Português', // Portuguese
-    'pt-BR': 'Português (Brasil)', // Portuguese (Brazilian)
-    'ro': 'Română', // Romanian
-    'ru': 'Pусский', // Russian
-    'sr': 'Cрпски', // Serbian
-    'sv': 'Svenska', // Swedish
-    'th': 'ไทย', // Thai
-    'tl': 'Filipino', // Tagalog
-    'tr': 'Türkçe', // Turkish
-    'uk': 'Yкраї́нська', // Ukrainian
-    'vi': 'Tiếng Việt', // Vietnamese
-    'zh-Hans': '中文 (简化字)', // Chinese (Simplified)
-    'zh-Hant': '中文 (繁體字)', // Chinese (Traditional)
+    'ar': 'اَلْعَرَبِيَّةُ',
+    'bg': 'български',
+    'bn': 'বাংলা',
+    'ca': 'Català',
+    'cs': 'Čeština',
+    'da': 'Dansk',
+    'de': 'Deutsch',
+    'en': 'English',
+    'es': 'Español',
+    'es-419': 'Español (Latinoamérica)',
+    'fa': 'فارسی',
+    'fi': 'Suomi',
+    'fr': 'Français',
+    'he': 'עִבְרִית',
+    'hi': 'हिन्दी',
+    'hu': 'Magyar',
+    'id': 'Indonesia',
+    'it': 'Italiano',
+    'ja': '日本語',
+    'ko': '한국어',
+    'lt': 'Lietuvių',
+    'mn': 'монгол',
+    'ms': 'Melayu',
+    'my': 'မြန်မာဘာသာ',
+    'nl': 'Nederlands',
+    'no': 'Norsk',
+    'pl': 'Polski',
+    'pt': 'Português',
+    'pt-BR': 'Português (Brasil)',
+    'ro': 'Română',
+    'ru': 'Pусский',
+    'sr': 'Cрпски',
+    'sv': 'Svenska',
+    'th': 'ไทย',
+    'tl': 'Filipino',
+    'tr': 'Türkçe',
+    'uk': 'Yкраї́нська',
+    'vi': 'Tiếng Việt',
+    'zh-Hans': '中文 (简化字)',
+    'zh-Hant': '中文 (繁體字)',
 }
 
 // ! Query Interfaces Start
-// interface categories
 export interface tachiCategory {
     id: number,
     order: number,
@@ -206,13 +208,13 @@ export interface tachiChapter {
     "chapterCount": number,
     "meta": any
 }
-
 // ! Query Interfaces End
 
 // ! Reset Settings Begin
 export async function resetSettings(stateManager: SourceStateManager) {
     await stateManager.store(SERVER_URL_KEY, DEFAULT_SERVER_URL)
     await stateManager.store(SERVER_API_KEY, DEFAULT_SERVER_API)
+    await stateManager.store(SERVER_GRAPHQL_KEY, DEFAULT_SERVER_GRAPHQL)
     await stateManager.store(AUTH_STATE_KEY, DEFAULT_AUTH_STATE)
     await stateManager.keychain.store(AUTH_STRING_KEY, DEFAULT_AUTH_STRING)
     await stateManager.store(USERNAME_KEY, DEFAULT_USERNAME)
@@ -233,27 +235,34 @@ export async function resetSettings(stateManager: SourceStateManager) {
 // ! Reset Settings End
 
 // ! Server URL start
-
 export async function setServerURL(stateManager: SourceStateManager, url: string, typed = false) {
-    // * since every key press is a value set() and get(), the override which ensuring that the URL always has a backslash won't let people delete it
-    // ! typed is a boolean that we set to true only when being entered by the DUIInputField, skipping the override when typing the url
-    // ! atleast until user hits submit.
     if (!typed) {
         url = url == "" ? DEFAULT_SERVER_URL : url
-        url = url.slice(-1) === '/' ? url : url + "/" // Verified / at the end of URL
+        url = url.slice(-1) === '/' ? url : url + "/"
+    } else {
+        // Even while typing, normalize trailing slash for the graphql/api keys
+        const normalized = url.slice(-1) === '/' ? url : url + "/"
+        await stateManager.store(SERVER_API_KEY, normalized + DEFAULT_API_ENDPOINT)
+        await stateManager.store(SERVER_GRAPHQL_KEY, normalized + DEFAULT_GRAPHQL_ENDPOINT)
+        await stateManager.store(SERVER_URL_KEY, url)
+        return
     }
-
     await stateManager.store(SERVER_URL_KEY, url)
     await stateManager.store(SERVER_API_KEY, url + DEFAULT_API_ENDPOINT)
+    await stateManager.store(SERVER_GRAPHQL_KEY, url + DEFAULT_GRAPHQL_ENDPOINT)
 }
 
 export async function getServerURL(stateManager: SourceStateManager) {
     return (await stateManager.retrieve(SERVER_URL_KEY) as string | undefined) ?? DEFAULT_SERVER_URL
 }
 
-// Get Server API url (i.e. http://127.0.0.1/api/v1/)
 export async function getServerAPI(stateManager: SourceStateManager) {
     return (await stateManager.retrieve(SERVER_API_KEY) as string | undefined) ?? DEFAULT_SERVER_API
+}
+
+export async function getServerGraphQL(stateManager: SourceStateManager) {
+    return (await stateManager.retrieve(SERVER_GRAPHQL_KEY) as string | undefined)
+        ?? ((await getServerURL(stateManager)) + DEFAULT_GRAPHQL_ENDPOINT)
 }
 // !Server URL End
 
@@ -270,7 +279,7 @@ export async function setAuthString(stateManager: SourceStateManager) {
     let username = await getUsername(stateManager);
     let password = await getPassword(stateManager);
 
-    let authString = 'Basic ' + Buffer.from(username + ':' + password, 'binary').toString('base64'); // Base64 of username:password
+    let authString = 'Basic ' + Buffer.from(username + ':' + password, 'binary').toString('base64');
     await stateManager.keychain.store(AUTH_STRING_KEY, authString);
 }
 
@@ -280,7 +289,7 @@ export async function getAuthString(stateManager: SourceStateManager) {
 
 export async function setUsername(stateManager: SourceStateManager, username: string) {
     await stateManager.store(USERNAME_KEY, username);
-    await setAuthString(stateManager) // Set new auth string based on new username
+    await setAuthString(stateManager)
 }
 
 export async function getUsername(stateManager: SourceStateManager) {
@@ -289,7 +298,7 @@ export async function getUsername(stateManager: SourceStateManager) {
 
 export async function setPassword(stateManager: SourceStateManager, password: string) {
     await stateManager.keychain.store(PASSWORD_KEY, password);
-    await setAuthString(stateManager); // Set new auth string based on new username
+    await setAuthString(stateManager);
 }
 
 export async function getPassword(stateManager: SourceStateManager) {
@@ -297,8 +306,83 @@ export async function getPassword(stateManager: SourceStateManager) {
 }
 // ! Authentication End
 
-// ! Requests
-export async function makeRequest(stateManager: SourceStateManager, requestManager: RequestManager, apiEndpoint: string, method = "GET", data?: Record<string, string> | string, headers: Record<string, string> = {}) {
+// ! GraphQL Requests
+export async function graphqlRequest(
+    stateManager: SourceStateManager,
+    requestManager: RequestManager,
+    query: string,
+    variables: Record<string, any> = {}
+): Promise<any> {
+    const endpoint = await getServerGraphQL(stateManager);
+
+    const request = App.createRequest({
+        url: endpoint,
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        data: JSON.stringify({ query, variables })
+    });
+
+    let response;
+    try {
+        response = await requestManager.schedule(request, 0);
+    } catch (error: any) {
+        throw new Error(`Failed to reach GraphQL endpoint: ${endpoint}`);
+    }
+
+    if (response.status === 401) {
+        throw new Error("Unauthorized: check username/password.");
+    }
+
+    if (response.status < 200 || response.status >= 300) {
+        throw new Error(`GraphQL HTTP error ${response.status}: ${response.data}`);
+    }
+
+    let json: any;
+    try {
+        json = JSON.parse(response.data ?? "");
+    } catch {
+        throw new Error(`GraphQL response was not valid JSON: ${response.data}`);
+    }
+
+    if (json.errors) {
+        throw new Error(`GraphQL error: ${JSON.stringify(json.errors)}`);
+    }
+
+    return json;
+}
+
+
+export async function testGraphQL(
+    stateManager: SourceStateManager,
+    requestManager: RequestManager
+): Promise<any | Error> {
+    try {
+        const result = await graphqlRequest(stateManager, requestManager, `
+            query TestConnection {
+                aboutServer {
+                    name
+                    version
+                }
+            }
+        `);
+        return result.data;
+    } catch (e) {
+        return e instanceof Error ? e : new Error(String(e));
+    }
+}
+
+
+export async function makeRequest(
+    stateManager: SourceStateManager,
+    requestManager: RequestManager,
+    apiEndpoint: string,
+    method = "GET",
+    data?: Record<string, string> | string,
+    headers: Record<string, string> = {}
+) {
     const serverAPI = await getServerAPI(stateManager)
 
     const request = App.createRequest({
@@ -309,64 +393,82 @@ export async function makeRequest(stateManager: SourceStateManager, requestManag
     })
 
     let response;
-    let responseStatus;
-    let responseData;
-
-    // Checks if the request actually went out
     try {
         response = await requestManager.schedule(request, 0);
-    }
-    catch (error: any) {
+    } catch {
         return new Error(serverAPI + apiEndpoint)
     }
 
-    // Checks if we got a response, then checks if we got a good response
-    try {
-        responseStatus = response?.status
-    }
-    catch (error: any) {
-        return Error("Couldn't connect to server.")
-    }
-    if (responseStatus == 401) {
-        return Error("Unauthorized" + " " + JSON.stringify(await getAuthString(stateManager)))
+    if (response?.status == 401) {
+        return Error("Unauthorized " + JSON.stringify(await getAuthString(stateManager)))
     }
 
-    if (responseStatus != 200) {
+    if (response?.status != 200) {
         return Error("Your query is invalid. " + JSON.stringify(response?.status))
     }
 
-    // Checks for garbage data
     try {
-        responseData = JSON.parse(response.data ?? "")
-    }
-    catch (error: any) {
+        return JSON.parse(response.data ?? "")
+    } catch {
         return Error(apiEndpoint)
     }
-
-    return responseData
 }
 
-// Requests used for the test server button. Could be useful to test connection at other points
 export async function testRequest(stateManager: SourceStateManager, requestManager: RequestManager) {
-    return await makeRequest(stateManager, requestManager, "settings/about/")
+    return await testGraphQL(stateManager, requestManager)
 }
 // ! Requests End
 
 // ! Categories Start
-// Fetch Categories from server and returns them as a record
-export async function fetchServerCategories(stateManager: SourceStateManager, requestManager: RequestManager) {
-    let categories: Record<string, tachiCategory> = {};
-
-    const fetchedCategories = await makeRequest(stateManager, requestManager, "category/");
-
-    if (fetchedCategories instanceof Error) {
-        throw new Error("Failed to fetch categories.")
+const GQL_LIST_CATEGORIES = `
+    query ListCategories {
+        categories(orderBy: ORDER) {
+            nodes {
+                id
+                order
+                name
+                default
+                meta {
+                    key
+                    value
+                }
+            }
+        }
     }
-    fetchedCategories.forEach((category: tachiCategory) => {
-        categories[JSON.stringify(category.id)] = category
-    });
+`;
 
-    return categories
+export async function fetchServerCategories(stateManager: SourceStateManager, requestManager: RequestManager) {
+    const categories: Record<string, tachiCategory> = {};
+
+    try {
+        const result = await graphqlRequest(stateManager, requestManager, GQL_LIST_CATEGORIES);
+        const nodes = result?.data?.categories?.nodes ?? [];
+
+        nodes.forEach((node: any) => {
+            // Reduce meta array back to a record (best-effort)
+            let meta: any = {};
+            if (Array.isArray(node.meta)) {
+                for (const m of node.meta) {
+                    meta[m.key] = m.value;
+                }
+            }
+
+            const category: tachiCategory = {
+                id: node.id,
+                order: node.order ?? 0,
+                name: node.name,
+                default: !!node.default,
+                size: 0,
+                includeInUpdate: "EXCLUDE",
+                meta
+            }
+            categories[String(category.id)] = category;
+        });
+    } catch (error) {
+        throw new Error(`Failed to fetch categories: ${error}`);
+    }
+
+    return categories;
 }
 
 export async function setServerCategories(stateManager: SourceStateManager, categories: Record<string, tachiCategory>) {
@@ -398,7 +500,6 @@ export function getCategoryFromId(categories: Record<string, tachiCategory>, id:
     return categories[id] ?? DEFAULT_SERVER_CATEGORY
 }
 
-// categoryName is used to give a name to old entries which are no longer in the server
 export function getCategoryNameFromId(categories: Record<string, tachiCategory>, id: string) {
     let categoryName = "OLD ENTRY OR ERROR"
     Object.values(categories).forEach(category => {
@@ -412,21 +513,48 @@ export function getCategoryNameFromId(categories: Record<string, tachiCategory>,
 // ! Categories End
 
 // ! Sources Start
-// Fetch Sources from server and return as record
+const GQL_LIST_SOURCES = `
+    query ListSources {
+        sources {
+            nodes {
+                id
+                name
+                lang
+                iconUrl
+                supportsLatest
+                isConfigurable
+                isNsfw
+                displayName
+            }
+        }
+    }
+`;
+
 export async function fetchServerSources(stateManager: SourceStateManager, requestManager: RequestManager) {
-    let sources: Record<string, tachiSources> = {};
+    const sources: Record<string, tachiSources> = {};
 
-    const fetchedSources = await makeRequest(stateManager, requestManager, "source/list")
+    try {
+        const result = await graphqlRequest(stateManager, requestManager, GQL_LIST_SOURCES);
+        const nodes = result?.data?.sources?.nodes ?? [];
 
-    if (fetchedSources instanceof Error) {
-        throw new Error("Failed to fetch sources.")
+        nodes.forEach((node: any) => {
+            const source: tachiSources = {
+                id: String(node.id),
+                name: node.name ?? "",
+                lang: node.lang ?? "",
+                iconUrl: node.iconUrl ?? "",
+                supportsLatest: !!node.supportsLatest,
+                isConfigurable: !!node.isConfigurable,
+                isNsfw: !!node.isNsfw,
+                displayName: node.displayName ?? node.name ?? ""
+            };
+            sources[source.id] = source;
+        });
+    } catch (error) {
+        throw new Error(`Failed to fetch sources: ${error}`);
     }
 
-    fetchedSources.forEach((source: tachiSources) => {
-        sources[source.id] = source
-    });
-
-    return sources
+    return sources;
 }
 
 export async function setServerSources(stateManager: SourceStateManager, sources: Record<string, tachiSources>) {
@@ -458,7 +586,6 @@ export function getSourceFromId(sources: Record<string, tachiSources>, id: strin
     return sources[id] ?? DEFAULT_SERVER_SOURCE
 }
 
-// SourceName is used to give a name to old entries which are no longer in the server
 export function getSourceNameFromId(sources: Record<string, tachiSources>, id: string) {
     let sourceName = "OLD ENTRY OR ERROR"
     Object.values(sources).forEach(source => {

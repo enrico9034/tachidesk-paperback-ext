@@ -55,7 +55,9 @@ import {
     testRequest
 } from "./Common"
 
-// 2 Sections 1 page, -> 1 for server url, another for auth
+// ---------------------------------------------------------------------------
+// Server settings page (URL + Auth)
+// ---------------------------------------------------------------------------
 export const serverAddressSettings = (stateManager: SourceStateManager, requestManager: RequestManager): DUINavigationButton => {
     return App.createDUINavigationButton({
         id: "serverSettings",
@@ -63,14 +65,15 @@ export const serverAddressSettings = (stateManager: SourceStateManager, requestM
         form: App.createDUIForm({
             onSubmit: async () => {
                 await setServerURL(stateManager, await getServerURL(stateManager), false)
-                const serverSources = await fetchServerSources(stateManager, requestManager)
-                const serverCategories = await fetchServerCategories(stateManager, requestManager)
-                if (serverSources instanceof Error || serverCategories instanceof Error) {
-                    throw new Error("Failed to fetch server. Try again?")
-                }
-                else {
-                    await setServerSources(stateManager, serverSources);
-                    await setServerCategories(stateManager, serverCategories);
+
+                try {
+                    const serverSources = await fetchServerSources(stateManager, requestManager)
+                    const serverCategories = await fetchServerCategories(stateManager, requestManager)
+                    await setServerSources(stateManager, serverSources)
+                    await setServerCategories(stateManager, serverCategories)
+                } catch (e) {
+                    console.log(`Server settings submit failed: ${e}`)
+                    throw new Error(`Failed to fetch server. ${e instanceof Error ? e.message : ''}`)
                 }
             },
             sections: async () => {
@@ -98,11 +101,15 @@ export const serverAddressSettings = (stateManager: SourceStateManager, requestM
                                 label: "Test Server",
                                 onTap: async () => {
                                     console.log('Testing server');
-                                    const value = await testRequest(stateManager, requestManager)
-                                    if (value instanceof Error) {
-                                        testResults = `Error: ${value.message}`;
-                                    } else {
-                                        testResults = `Response: ${JSON.stringify(value)}`;
+                                    try {
+                                        const value = await testRequest(stateManager, requestManager)
+                                        if (value instanceof Error) {
+                                            testResults = `Error: ${value.message}`
+                                        } else {
+                                            testResults = `Response: ${JSON.stringify(value)}`
+                                        }
+                                    } catch (e) {
+                                        testResults = `Error: ${e instanceof Error ? e.message : String(e)}`
                                     }
                                     console.log(`Test results: ${testResults}`)
                                 }
@@ -118,7 +125,6 @@ export const serverAddressSettings = (stateManager: SourceStateManager, requestM
                         header: "Authorization",
                         isHidden: false,
                         rows: async () => [
-                            // Auth Switch
                             App.createDUISwitch({
                                 id: "authStateSwitch",
                                 label: "Enabled",
@@ -131,7 +137,6 @@ export const serverAddressSettings = (stateManager: SourceStateManager, requestM
                                     }
                                 })
                             }),
-                            // Username
                             App.createDUIInputField({
                                 id: "UsernameInputField",
                                 label: "Username",
@@ -144,7 +149,6 @@ export const serverAddressSettings = (stateManager: SourceStateManager, requestM
                                     }
                                 })
                             }),
-                            // Password
                             App.createDUISecureInputField({
                                 id: "passwordInputField",
                                 label: "Password",
@@ -165,9 +169,10 @@ export const serverAddressSettings = (stateManager: SourceStateManager, requestM
     })
 }
 
-// Houses settings for Manga Per Row, and settings for each type of homepage section (recently updated, library category, and source )
-// for sections -> You can toggle them, change their style, change their content (which category/source)
-export const HomepageSettings = (stateManager: SourceStateManager, requestManager: RequestManager): DUINavigationButton => {
+// ---------------------------------------------------------------------------
+// Homepage settings page
+// ---------------------------------------------------------------------------
+export const HomepageSettings = (stateManager: SourceStateManager, _requestManager: RequestManager): DUINavigationButton => {
     return App.createDUINavigationButton({
         id: "homepageSettings",
         label: "Homepage Settings",
@@ -224,9 +229,7 @@ export const HomepageSettings = (stateManager: SourceStateManager, requestManage
                                         await setUpdatedRowStyle(stateManager, newValue)
                                     }
                                 }),
-                                labelResolver: async (option) => {
-                                    return styleResolver(option);
-                                },
+                                labelResolver: async (option) => styleResolver(option),
                             })
                         ]
                     }),
@@ -260,9 +263,7 @@ export const HomepageSettings = (stateManager: SourceStateManager, requestManage
                                         await setCategoryRowStyle(stateManager, newValue)
                                     }
                                 }),
-                                labelResolver: async (option) => {
-                                    return styleResolver(option);
-                                },
+                                labelResolver: async (option) => styleResolver(option),
                             }),
                         ]
                     }),
@@ -296,9 +297,7 @@ export const HomepageSettings = (stateManager: SourceStateManager, requestManage
                                         await setSourceRowStyle(stateManager, newValue)
                                     }
                                 }),
-                                labelResolver: async (option) => {
-                                    return styleResolver(option);
-                                },
+                                labelResolver: async (option) => styleResolver(option),
                             }),
                         ]
                     })
@@ -308,30 +307,32 @@ export const HomepageSettings = (stateManager: SourceStateManager, requestManage
     })
 }
 
+// ---------------------------------------------------------------------------
 // Category selection
-export const categoriesSettings = async (stateManager: SourceStateManager, requestManager: RequestManager): Promise<DUISelect> => {
-    let serverCategories = await getServerCategories(stateManager);
-    let missedSelected = []
+// All getters read fresh from stateManager each time -> no captured closures,
+// fixes "JSManagedValue was released" when the select is re-rendered.
+// ---------------------------------------------------------------------------
+export const categoriesSettings = async (stateManager: SourceStateManager, _requestManager: RequestManager): Promise<DUISelect> => {
+    const serverCategories = await getServerCategories(stateManager);
+    const selected = await getSelectedCategories(stateManager);
 
-    // Gets the selected categories, checks if they're in the options. If they're not, add them to a list added to the options later
-    // Ensures that user can delete an old option.
-    for (const id of await getSelectedCategories(stateManager)) {
-        if (!(getCategoriesIds(serverCategories).includes(id))) {
-            missedSelected.push(id)
-        }
-    }
+    const known = getCategoriesIds(serverCategories);
+    const missedSelected = selected.filter((id) => !known.includes(id));
+    const options = known.concat(missedSelected);
 
     return App.createDUISelect({
         id: "CategoriesSelection",
         label: "Categories",
         allowsMultiselect: true,
-        options: getCategoriesIds(serverCategories).concat(missedSelected),
+        options,
         labelResolver: async (option) => {
-            return getCategoryNameFromId(serverCategories, option) ?? ""
+            // Read fresh inside the callback so we don't hold a captured ref
+            const cats = await getServerCategories(stateManager);
+            return getCategoryNameFromId(cats, option) ?? "";
         },
         value: App.createDUIBinding({
             async get() {
-                return (await getSelectedCategories(stateManager))
+                return await getSelectedCategories(stateManager)
             },
             async set(newValue) {
                 await setSelectedCategories(stateManager, newValue)
@@ -340,24 +341,31 @@ export const categoriesSettings = async (stateManager: SourceStateManager, reque
     })
 }
 
+// ---------------------------------------------------------------------------
 // Source selection
-export const sourceSettings = async (stateManager: SourceStateManager, requestManager: RequestManager): Promise<DUISelect> => {
-    let serverSources = await getServerSources(stateManager);
-    let missedSelected = []
-    const languages = await getSelectedLanguages(stateManager)
+// ---------------------------------------------------------------------------
+export const sourceSettings = async (stateManager: SourceStateManager, _requestManager: RequestManager): Promise<DUISelect> => {
+    const serverSources = await getServerSources(stateManager);
+    const selectedLanguages = await getSelectedLanguages(stateManager);
+    const selectedSources = await getSelectedSources(stateManager);
 
-    // Clean sources based on selected languages
-    // getSourcesIds(serverSources).concat(missedSelected)
-    const options = Object.keys(serverSources).filter((key) => {
-        const source = serverSources[key] ?? DEFAULT_SERVER_SOURCE
-        return languages.includes(source.lang)
-    })
+    // Filter sources by selected languages
+    const filtered = Object.keys(serverSources).filter((key) => {
+        const source = serverSources[key] ?? DEFAULT_SERVER_SOURCE;
+        return selectedLanguages.includes(source.lang);
+    });
 
-    // Gets the selected sources, checks if they're in the options. If they're not, add them to a list added to the options later
-    // Ensures that user can delete an old option.
-    for (const id of options.concat(await getSelectedSources(stateManager))) {
-        if (!(getSourcesIds(serverSources).includes(id))) {
-            missedSelected.push(id)
+    // Add any selected sources that aren't in the filtered list (so users can deselect them)
+    const knownIds = getSourcesIds(serverSources);
+    const missedSelected = selectedSources.filter((id) => !knownIds.includes(id) || !filtered.includes(id));
+
+    // Deduplicate while preserving order
+    const seen = new Set<string>();
+    const options: string[] = [];
+    for (const id of [...filtered, ...missedSelected]) {
+        if (!seen.has(id)) {
+            seen.add(id);
+            options.push(id);
         }
     }
 
@@ -365,9 +373,10 @@ export const sourceSettings = async (stateManager: SourceStateManager, requestMa
         id: "SourcesSelection",
         label: "Sources",
         allowsMultiselect: true,
-        options: options.concat(missedSelected),
+        options,
         labelResolver: async (option) => {
-            return getSourceNameFromId(serverSources, option)
+            const sources = await getServerSources(stateManager);
+            return getSourceNameFromId(sources, option);
         },
         value: App.createDUIBinding({
             async get() {
@@ -380,16 +389,27 @@ export const sourceSettings = async (stateManager: SourceStateManager, requestMa
     })
 }
 
-
+// ---------------------------------------------------------------------------
+// Language selection
+// ---------------------------------------------------------------------------
 export const languageSettings = async (stateManager: SourceStateManager): Promise<DUISelect> => {
+    const serverLangs = await getServerLanguages(stateManager);
+    const options = getLanguageCodes().concat(serverLangs);
+
+    // Deduplicate
+    const seen = new Set<string>();
+    const uniqueOptions = options.filter((l) => {
+        if (seen.has(l)) return false;
+        seen.add(l);
+        return true;
+    });
+
     return App.createDUISelect({
         id: "languageSelection",
         label: "Languages",
         allowsMultiselect: true,
-        options: getLanguageCodes().concat(await getServerLanguages(stateManager)),
-        labelResolver: async (option) => {
-            return getLanguageName(option)
-        },
+        options: uniqueOptions,
+        labelResolver: async (option) => getLanguageName(option),
         value: App.createDUIBinding({
             async get() {
                 return await getSelectedLanguages(stateManager)
@@ -401,7 +421,9 @@ export const languageSettings = async (stateManager: SourceStateManager): Promis
     })
 }
 
-// Button which runs a function from common which sets every Paperback value back to their default values
+// ---------------------------------------------------------------------------
+// Reset settings button
+// ---------------------------------------------------------------------------
 export const resetSettingsButton = async (stateManager: SourceStateManager): Promise<DUIButton> => {
     return App.createDUIButton({
         id: "resetSettingsButton",
