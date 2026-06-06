@@ -201,7 +201,7 @@ const GQL_GET_CATEGORY_MANGAS = `
 `;
 
 const GQL_GET_SOURCE_MANGAS = `
-    query GetSourceMangas($sourceId: LongString!, $type: FetchSourceMangaType!, $page: Int!) {
+    mutation GetSourceMangas($sourceId: LongString!, $type: FetchSourceMangaType!, $page: Int!) {
         fetchSourceManga(input: { source: $sourceId, type: $type, page: $page }) {
             hasNextPage
             mangas {
@@ -214,7 +214,7 @@ const GQL_GET_SOURCE_MANGAS = `
 `;
 
 const GQL_SEARCH_SOURCE = `
-    query SearchSource($sourceId: LongString!, $query: String, $page: Int!) {
+    mutation SearchSource($sourceId: LongString!, $query: String, $page: Int!) {
         fetchSourceManga(input: { source: $sourceId, type: SEARCH, page: $page, query: $query }) {
             hasNextPage
             mangas {
